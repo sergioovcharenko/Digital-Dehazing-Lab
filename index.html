@@ -37,6 +37,11 @@
     <button id="saveFrame">Зберегти кадр</button>
   </div>
 
+  <div class="cameraControls">
+    <label>Zoom <input id="cameraZoom" type="range" min="1" max="6" step="0.1" value="1"> <span id="cameraZoomVal">1.0×</span></label>
+    <button id="cameraResetZoom" type="button">1×</button>
+  </div>
+
   <div class="viewModes" aria-label="Режим перегляду">
     <button data-view="split" class="active">50/50</button>
     <button data-view="two">2 кадри</button>
