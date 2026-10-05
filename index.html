@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest"/>
 <link rel="icon" type="image/png" sizes="192x192" href="icons/clearsight-192.png"/>
 <link rel="apple-touch-icon" href="icons/clearsight-192.png"/>
-<link rel="stylesheet" href="styles.css"/>
+<link rel="stylesheet" href="styles.css?v=20261005-6"/>
 </head>
 <body>
 <div class="appShell">
@@ -94,7 +94,13 @@
         <button data-view="split" class="active">50/50</button>
         <button data-view="two">2 кадри</button>
         <button data-view="mini">2 малі</button>
-        <button data-view="processed">Оброблений</button>
+        <button data-view="processed">На весь екран</button>
+      </div>
+      <div class="settingTitle subTitle">Напрямок поділу</div>
+      <div class="segmented three" id="splitDirection">
+        <button data-split="auto" class="active">AUTO</button>
+        <button data-split="vertical">Вертикально</button>
+        <button data-split="horizontal">Горизонтально</button>
       </div>
     </section>
 
@@ -140,7 +146,7 @@
   </aside>
 </div>
 
-<script src="classic-dcp.js"></script>
-<script src="app.js"></script>
+<script src="classic-dcp.js?v=20261005-6"></script>
+<script src="app.js?v=20261005-6"></script>
 </body>
 </html>
