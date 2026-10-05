@@ -11,7 +11,7 @@
   const bClassic=$('bClassic'), bWebl=$('bWebl'), bEdn=$('bEdn'), bAid=$('bAid');
   let sourceMode='video', stream=null, objectUrl=null, running=false, raf=0, lastTs=0, frames=0, fpsTs=0;
   let viewMode='split', liveTrack=null, digitalZoom=1, frozen=false;
-  let autoS=.60, autoTs=0, currentPhoto=null;
+  let autoS=.60, autoTs=0, currentPhoto=null, sceneMode='DAY', autoContrast=1, autoDenoise=0;
   let aiBusy=false;
   const bench={classic:[],webl:[],edn:[],aid:[]};
 
@@ -44,7 +44,7 @@
     if(prog||!gl)return;
     const vs=sh(gl.VERTEX_SHADER,`attribute vec2 a; varying vec2 uv; void main(){uv=(a+1.0)*.5;gl_Position=vec4(a,0.,1.);}`);
     const fs=sh(gl.FRAGMENT_SHADER,`precision mediump float;
-varying vec2 uv; uniform sampler2D t; uniform vec2 px; uniform float s;
+varying vec2 uv; uniform sampler2D t; uniform vec2 px; uniform float s; uniform float uContrast; uniform float uDenoise;
 float lum(vec3 c){return dot(c,vec3(.299,.587,.114));}
 float dc(vec3 c){return min(c.r,min(c.g,c.b));}
 void main(){
@@ -71,6 +71,9 @@ void main(){
  vec3 detail=clamp(c-local,vec3(-.085),vec3(.085));
  r+=detail*s*(.18+.70*obj);
  float ry=lum(r);r=vec3(ry)+(r-vec3(ry))*(1.+.055*s+.095*obj);
+ vec3 smooth=nearMean;
+ r=mix(r,smooth,clamp(uDenoise*(1.-structure),0.,.22));
+ r=(r-.5)*uContrast+.5;
  gl_FragColor=vec4(clamp(r,0.,1.),1.);
 }`);
     prog=gl.createProgram();gl.attachShader(prog,vs);gl.attachShader(prog,fs);gl.linkProgram(prog);gl.useProgram(prog);
@@ -91,6 +94,8 @@ void main(){
       gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,capCanvas);
     }else gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,src);
     gl.uniform2f(gl.getUniformLocation(prog,'px'),1/rw,1/rh);gl.uniform1f(gl.getUniformLocation(prog,'s'),s);
+    gl.uniform1f(gl.getUniformLocation(prog,'uContrast'),autoStrength.checked?autoContrast:1.0);
+    gl.uniform1f(gl.getUniformLocation(prog,'uDenoise'),autoStrength.checked?autoDenoise:0.0);
     gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
     return glCanvas;
   }
@@ -121,11 +126,43 @@ void main(){
   }
   function analyzeAuto(src,w,h,now){
     if(!autoStrength.checked||now-autoTs<700)return;
-    autoTs=now;const [im,cw,ch]=captureForCPU(src,w,h,96),d=im.data;let sum=0,sum2=0,sat=0;
-    for(let i=0;i<d.length;i+=4){const y=.299*d[i]+.587*d[i+1]+.114*d[i+2];sum+=y;sum2+=y*y;sat+=Math.max(d[i],d[i+1],d[i+2])-Math.min(d[i],d[i+1],d[i+2]);}
+    autoTs=now;
+    const [im,cw,ch]=captureForCPU(src,w,h,96),d=im.data;
+    let sum=0,sum2=0,sat=0,dark=0,bright=0;
+    for(let i=0;i<d.length;i+=4){
+      const r=d[i],g=d[i+1],b=d[i+2],y=.299*r+.587*g+.114*b;
+      sum+=y;sum2+=y*y;sat+=Math.max(r,g,b)-Math.min(r,g,b);
+      if(y<45)dark++; if(y>210)bright++;
+    }
     const n=cw*ch,mean=sum/n,std=Math.sqrt(Math.max(0,sum2/n-mean*mean)),satM=sat/n;
-    const haze=Math.max(0,Math.min(1,(45-std)/35*.65+(35-satM)/35*.35));
-    autoS=autoS*.78+(0.08+haze*.80)*.22;setLabels();
+    const darkRatio=dark/n,brightRatio=bright/n;
+    const haze=Math.max(0,Math.min(1,(48-std)/38*.62+(38-satM)/38*.38));
+
+    const nextMode = mean<52 ? 'NIGHT' : mean<95 ? 'EVENING' : 'DAY';
+    sceneMode=nextMode;
+
+    let target=0.08+haze*.80;
+    let contrastTarget=1.0, denoiseTarget=0.0;
+
+    if(sceneMode==='NIGHT'){
+      target=Math.min(.70,target*.72);
+      contrastTarget=1.06;
+      denoiseTarget=Math.min(.18,.06+darkRatio*.18);
+    }else if(sceneMode==='EVENING'){
+      target=Math.min(.82,target*.88);
+      contrastTarget=1.10;
+      denoiseTarget=Math.min(.10,.03+darkRatio*.08);
+    }else{
+      contrastTarget=brightRatio>.20?1.03:1.08;
+      denoiseTarget=0.02;
+    }
+
+    autoS=autoS*.82+target*.18;
+    autoContrast=autoContrast*.85+contrastTarget*.15;
+    autoDenoise=autoDenoise*.85+denoiseTarget*.15;
+
+    if(engineStat)engineStat.textContent=(algo().toUpperCase())+' • '+sceneMode;
+    setLabels();
   }
 
   // --- AI model hooks. Real model inference only; no fake filter fallback.
