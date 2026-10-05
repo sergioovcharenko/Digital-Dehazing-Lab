@@ -1,16 +1,16 @@
-:root{color-scheme:dark;font-family:Inter,system-ui,sans-serif}
+:root{color-scheme:light;font-family:Inter,system-ui,sans-serif}
 *{box-sizing:border-box}
-body{margin:0;background:#0b0f14;color:#eef3f8}
-header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:#111821;position:sticky;top:0;z-index:5;border-bottom:1px solid #263445}
-h1{font-size:18px;margin:0}.headState span{background:#1b2633;padding:6px 10px;border-radius:8px;font-size:12px}
+body{margin:0;background:#f3f5f7;color:#1f2933}
+header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:#ffffff;position:sticky;top:0;z-index:5;border-bottom:1px solid #d7dee6}
+h1{font-size:18px;margin:0}.headState span{background:#eef2f6;padding:6px 10px;border-radius:8px;font-size:12px}
 main{padding:14px;display:grid;gap:14px}
-.toolbar,.viewerWrap,.bench{background:#111821;border:1px solid #263445;border-radius:14px;padding:12px}
+.toolbar,.viewerWrap,.bench{background:#111821;border:1px solid #d7dee6;border-radius:14px;padding:12px}
 .sources,.algos,.controls,.cameraControls,.viewModes{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.sources button,.controls button,.viewModes button,.transport button{background:#1b2633;color:#eef3f8;border:1px solid #314359;border-radius:9px;padding:9px 12px}
+.sources button,.controls button,.viewModes button,.transport button{background:#eef2f6;color:#1f2933;border:1px solid #c6d0da;border-radius:9px;padding:9px 12px}
 .sources button.active,.viewModes button.active{outline:2px solid #7cc4ff}
-.algos{margin:10px 0}.cameraControls{margin-top:10px}.cameraControls label{background:#151e29;border:1px solid #2d3d51;border-radius:9px;padding:8px 10px}.cameraControls button{background:#1b2633;color:#eef3f8;border:1px solid #314359;border-radius:9px;padding:9px 12px}.algos label,.controls label{background:#151e29;border:1px solid #2d3d51;border-radius:9px;padding:8px 10px}
+.algos{margin:10px 0}.cameraControls{margin-top:10px}.cameraControls label{background:#f7f9fb;border:1px solid #d7dee6;border-radius:9px;padding:8px 10px}.cameraControls button{background:#eef2f6;color:#1f2933;border:1px solid #c6d0da;border-radius:9px;padding:9px 12px}.algos label,.controls label{background:#f7f9fb;border:1px solid #d7dee6;border-radius:9px;padding:8px 10px}
 .viewModes{margin-top:10px}
-.status{margin-bottom:8px;color:#b8c7d9}
+.status{margin-bottom:8px;color:#607080}
 .viewerStage{width:100%;background:#05070a;border-radius:12px;overflow:hidden;display:grid;gap:10px;align-items:center;justify-content:center}
 .framePane{position:relative;background:#05070a;overflow:hidden;border-radius:10px;display:grid;place-items:center;min-width:0}
 .framePane video,.framePane img,.framePane canvas{width:100%;height:100%;object-fit:contain;display:block;background:#05070a}
@@ -28,10 +28,10 @@ main{padding:14px;display:grid;gap:14px}
 .viewerStage.view-processed .originalPane{display:none}
 .viewerStage.view-processed .processedPane{position:absolute;inset:0}
 .transport{display:flex;gap:10px;align-items:center;margin-top:10px}.transport input{flex:1}
-.processingBar{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:10px;padding:9px 11px;background:#0d141d;border:1px solid #263445;border-radius:10px;font-size:13px;font-variant-numeric:tabular-nums;color:#c7d3df}
-.processingBar b{color:#eef3f8}
+.processingBar{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:10px;padding:9px 11px;background:#f7f9fb;border:1px solid #d7dee6;border-radius:10px;font-size:13px;font-variant-numeric:tabular-nums;color:#536271}
+.processingBar b{color:#1f2933}
 .bench h2{font-size:16px;margin:0 0 10px}
-.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.cards>div{background:#151e29;border:1px solid #2d3d51;border-radius:10px;padding:10px;display:grid;gap:5px}.cards span{font-size:13px;color:#b8c7d9}
+.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.cards>div{background:#f7f9fb;border:1px solid #d7dee6;border-radius:10px;padding:10px;display:grid;gap:5px}.cards span{font-size:13px;color:#607080}
 @media(max-width:900px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.viewerStage.view-two,.viewerStage.view-mini{grid-template-columns:1fr}}
 
 html,body{max-width:100%;overflow-x:hidden}
@@ -73,7 +73,14 @@ input[type=range]{max-width:100%}
 }
 
 .cameraControls select{
-  background:#0d141d;color:#eef3f8;border:1px solid #314359;border-radius:7px;
+  background:#f7f9fb;color:#1f2933;border:1px solid #c6d0da;border-radius:7px;
   min-height:34px;padding:4px 8px;margin-left:6px
 }
 .controls button.active,.cameraControls button.active{outline:2px solid #7cc4ff}
+
+header{box-shadow:0 1px 6px rgba(16,24,40,.06)}
+.toolbar,.viewerWrap,.bench{box-shadow:0 1px 4px rgba(16,24,40,.04)}
+.sources button.active,.viewModes button.active{outline:2px solid #5b9bd5;background:#eaf3fb}
+.headState span{background:#eef2f6;color:#44515f}
+.status{color:#607080}
+.viewerStage,.framePane,.framePane video,.framePane img,.framePane canvas{background:#0b0d10}
