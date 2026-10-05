@@ -7,6 +7,8 @@
   const cameraZoom=$('cameraZoom'), cameraZoomVal=$('cameraZoomVal'), cameraResetZoom=$('cameraResetZoom');
   const cameraQuality=$('cameraQuality'), cameraFps=$('cameraFps'), freezeFrame=$('freezeFrame');
   const viewerStage=$('viewerStage'), engineStat=$('engineStat'), sourceStat=$('sourceStat'), outputStat=$('outputStat');
+  const settingsBtn=$('settingsBtn'),settingsPanel=$('settingsPanel'),settingsBackdrop=$('settingsBackdrop'),settingsClose=$('settingsClose');
+  const modeAuto=$('modeAuto'),modeManual=$('modeManual'),manualLevels=$('manualLevels');
   const seek=$('seek'), timeEl=$('time'), play=$('play');
   const bClassic=$('bClassic'), bWebl=$('bWebl'), bEdn=$('bEdn'), bAid=$('bAid');
   let sourceMode='video', stream=null, objectUrl=null, running=false, raf=0, lastTs=0, frames=0, fpsTs=0;
@@ -21,10 +23,10 @@
   function strength01(){return autoStrength.checked?autoS:Number(strength.value)/100;}
   function setLabels(){
     const map={original:'ORIGINAL',classic:'CLASSIC DCP',webl:'WEBL',edn:'EDN-GTM',aid:'AID',hybrid:'HYBRID'};
-    label.textContent=map[algo()]||algo().toUpperCase();
+    label.textContent=autoStrength.checked?'AUTO':(map[algo()]||algo().toUpperCase());
     strengthVal.textContent=Math.round(strength01()*100)+'%';
   }
-  strength.oninput=()=>{autoStrength.checked=false;setLabels(); if(sourceMode==='photo') renderPhoto();};
+  strength.oninput=()=>{setLabels(); if(sourceMode==='photo') renderPhoto();};
   autoStrength.onchange=()=>{setLabels(); if(sourceMode==='photo') renderPhoto();};
   document.querySelectorAll('[data-view]').forEach(btn=>btn.onclick=()=>{
     viewMode=btn.dataset.view;
@@ -161,7 +163,7 @@ void main(){
     autoContrast=autoContrast*.85+contrastTarget*.15;
     autoDenoise=autoDenoise*.85+denoiseTarget*.15;
 
-    if(engineStat)engineStat.textContent=(algo().toUpperCase())+' • '+sceneMode;
+    if(engineStat)engineStat.textContent=(autoStrength.checked?'AUTO':'MANUAL')+' • '+sceneMode;
     setLabels();
   }
 
@@ -227,7 +229,7 @@ void main(){
   async function processFrame(now=performance.now()){
     const [w,h,src]=sourceDims();if(!src||!w||!h)return;
     analyzeAuto(src,w,h,now);const a=algo(),s=strength01(),t0=performance.now();
-    if(engineStat)engineStat.textContent=a.toUpperCase();
+    if(engineStat)engineStat.textContent=(autoStrength.checked?'AUTO':'MANUAL')+' • '+sceneMode;
     if(sourceStat)sourceStat.textContent=w+'×'+h;
     try{
       if(a==='original'){compose(src,src,w,h);}
@@ -363,6 +365,38 @@ void main(){
     },'image/png');
   };
 
+  function openSettings(){
+    settingsPanel.classList.add('open');settingsPanel.setAttribute('aria-hidden','false');settingsBackdrop.hidden=false;
+  }
+  function closeSettings(){
+    settingsPanel.classList.remove('open');settingsPanel.setAttribute('aria-hidden','true');settingsBackdrop.hidden=true;
+  }
+  if(settingsBtn)settingsBtn.onclick=openSettings;
+  if(settingsClose)settingsClose.onclick=closeSettings;
+  if(settingsBackdrop)settingsBackdrop.onclick=closeSettings;
+
+  function setMode(auto){
+    autoStrength.checked=auto;
+    modeAuto.classList.toggle('active',auto);
+    modeManual.classList.toggle('active',!auto);
+    manualLevels.hidden=auto;
+    label.textContent=auto?'AUTO':'MANUAL';
+    setLabels();
+    if(sourceMode==='photo')renderPhoto();
+  }
+  if(modeAuto)modeAuto.onclick=()=>setMode(true);
+  if(modeManual)modeManual.onclick=()=>setMode(false);
+  if(manualLevels)manualLevels.querySelectorAll('[data-strength]').forEach(btn=>btn.onclick=()=>{
+    setMode(false);
+    manualLevels.querySelectorAll('[data-strength]').forEach(b=>b.classList.toggle('active',b===btn));
+    strength.value=btn.dataset.strength;
+    setLabels();
+    if(sourceMode==='photo')renderPhoto();
+  });
+
+  autoStrength.checked=true;
+  label.textContent='AUTO';
+
   window.addEventListener('orientationchange',()=>{if(viewMode==='split'&&sourceMode==='photo')renderPhoto();});
   window.addEventListener('resize',()=>{viewerStage.dataset.orientation=window.matchMedia('(orientation: portrait)').matches?'portrait':'landscape';});
   if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
@@ -370,5 +404,6 @@ void main(){
   window.addEventListener('offline',()=>{$('offlineState').textContent='OFFLINE';});
   $('offlineState').textContent=navigator.onLine?'ONLINE':'OFFLINE';
   setLabels();
-  setStatus('Lab ready. Фото, відео і LIVE обробляються локально; AI режими потребують локальних model/runtime assets.');
+  setMode(true);
+  setStatus('AUTO • оберіть Фото, Відео або LIVE');
 })();
