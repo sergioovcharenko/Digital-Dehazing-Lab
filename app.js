@@ -29,6 +29,7 @@
     viewMode=btn.dataset.view;
     document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b===btn));
     viewerStage.className='viewerStage view-'+viewMode;
+    viewerStage.dataset.orientation=window.matchMedia('(orientation: portrait)').matches?'portrait':'landscape';
     if(sourceMode==='photo') renderPhoto();
   });
   document.querySelectorAll('input[name=algo]').forEach(x=>x.onchange=()=>{setLabels();if(sourceMode==='photo')renderPhoto();});
@@ -165,9 +166,18 @@ void main(){
     if(out.width!==rw||out.height!==rh){out.width=rw;out.height=rh;}
     ctx.clearRect(0,0,rw,rh);
     if(viewMode==='split'){
+      const portrait=window.matchMedia('(orientation: portrait)').matches;
       drawSourceZoomed(ctx,src,0,0,rw,rh);
-      ctx.save();ctx.beginPath();ctx.rect(rw/2,0,rw/2,rh);ctx.clip();ctx.drawImage(processed,0,0,rw,rh);ctx.restore();
-      ctx.fillStyle='#fff';ctx.fillRect(rw/2-1,0,2,rh);
+      ctx.save();
+      ctx.beginPath();
+      if(portrait)ctx.rect(0,rh/2,rw,rh/2);
+      else ctx.rect(rw/2,0,rw/2,rh);
+      ctx.clip();
+      ctx.drawImage(processed,0,0,rw,rh);
+      ctx.restore();
+      ctx.fillStyle='#fff';
+      if(portrait)ctx.fillRect(0,rh/2-1,rw,2);
+      else ctx.fillRect(rw/2-1,0,2,rh);
     }else ctx.drawImage(processed,0,0,rw,rh);
   }
   function recordBench(kind,ms){
@@ -265,6 +275,8 @@ void main(){
   seek.oninput=()=>{if(sourceMode==='video'&&video.duration)video.currentTime=video.duration*Number(seek.value)/1000;};
   $('saveFrame').onclick=()=>{out.toBlob(blob=>{if(!blob)return;const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dehaze-frame.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);},'image/png');};
 
+  window.addEventListener('orientationchange',()=>{if(viewMode==='split'&&sourceMode==='photo')renderPhoto();});
+  window.addEventListener('resize',()=>{viewerStage.dataset.orientation=window.matchMedia('(orientation: portrait)').matches?'portrait':'landscape';});
   if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
   window.addEventListener('online',()=>{$('offlineState').textContent='ONLINE';});
   window.addEventListener('offline',()=>{$('offlineState').textContent='OFFLINE';});
