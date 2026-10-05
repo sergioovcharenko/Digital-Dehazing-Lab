@@ -4,7 +4,7 @@ body{margin:0;background:#f3f5f7;color:#1f2933}
 header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:#ffffff;position:sticky;top:0;z-index:5;border-bottom:1px solid #d7dee6}
 h1{font-size:18px;margin:0}.headState span{background:#eef2f6;padding:6px 10px;border-radius:8px;font-size:12px}
 main{padding:14px;display:grid;gap:14px}
-.toolbar,.viewerWrap,.bench{background:#111821;border:1px solid #d7dee6;border-radius:14px;padding:12px}
+.toolbar,.viewerWrap,.bench{background:#ffffff;border:1px solid #d7dee6;border-radius:14px;padding:12px}
 .sources,.algos,.controls,.cameraControls,.viewModes{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .sources button,.controls button,.viewModes button,.transport button{background:#eef2f6;color:#1f2933;border:1px solid #c6d0da;border-radius:9px;padding:9px 12px}
 .sources button.active,.viewModes button.active{outline:2px solid #7cc4ff}
