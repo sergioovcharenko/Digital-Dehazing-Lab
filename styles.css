@@ -71,3 +71,9 @@ input[type=range]{max-width:100%}
   header{padding-top:max(10px,env(safe-area-inset-top))}
   main{padding-bottom:max(8px,env(safe-area-inset-bottom))}
 }
+
+.cameraControls select{
+  background:#0d141d;color:#eef3f8;border:1px solid #314359;border-radius:7px;
+  min-height:34px;padding:4px 8px;margin-left:6px
+}
+.controls button.active,.cameraControls button.active{outline:2px solid #7cc4ff}
