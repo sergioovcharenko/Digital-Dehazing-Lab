@@ -5,11 +5,12 @@
   const status=$('status'), fpsEl=$('fps'), latEl=$('latency'), label=$('algoLabel');
   const strength=$('strength'), strengthVal=$('strengthVal'), autoStrength=$('autoStrength');
   const cameraZoom=$('cameraZoom'), cameraZoomVal=$('cameraZoomVal'), cameraResetZoom=$('cameraResetZoom');
+  const cameraQuality=$('cameraQuality'), cameraFps=$('cameraFps'), freezeFrame=$('freezeFrame');
   const viewerStage=$('viewerStage'), engineStat=$('engineStat'), sourceStat=$('sourceStat'), outputStat=$('outputStat');
   const seek=$('seek'), timeEl=$('time'), play=$('play');
   const bClassic=$('bClassic'), bWebl=$('bWebl'), bEdn=$('bEdn'), bAid=$('bAid');
   let sourceMode='video', stream=null, objectUrl=null, running=false, raf=0, lastTs=0, frames=0, fpsTs=0;
-  let viewMode='split', liveTrack=null, digitalZoom=1;
+  let viewMode='split', liveTrack=null, digitalZoom=1, frozen=false;
   let autoS=.60, autoTs=0, currentPhoto=null;
   let aiBusy=false;
   const bench={classic:[],webl:[],edn:[],aid:[]};
@@ -225,16 +226,19 @@ void main(){
   }
   $('photoBtn').onclick=()=>{$('photoInput').click();};
   $('videoBtn').onclick=()=>{$('videoInput').click();};
-  $('liveBtn').onclick=async()=>{
-    activate('live');stop();if(stream)stream.getTracks().forEach(t=>t.stop());
+  function liveConstraints(){
+    const q=cameraQuality?.value||'auto', f=cameraFps?.value||'auto';
+    let width={ideal:1920},height={ideal:1080};
+    if(q==='1080'){width={ideal:1920,max:1920};height={ideal:1080,max:1080};}
+    else if(q==='max'){width={ideal:3840};height={ideal:2160};}
+    const frameRate=f==='30'?{ideal:30,max:30}:f==='60'?{ideal:60,max:60}:{ideal:30,max:60};
+    return {video:{facingMode:{ideal:'environment'},width,height,frameRate,aspectRatio:{ideal:1.7777778}},audio:false};
+  }
+  async function startLiveCamera(){
+    activate('live');stop();frozen=false;if(freezeFrame)freezeFrame.textContent='Стоп-кадр';
+    if(stream)stream.getTracks().forEach(t=>t.stop());
     try{
-      stream=await navigator.mediaDevices.getUserMedia({video:{
-        facingMode:{ideal:'environment'},
-        width:{ideal:3840},
-        height:{ideal:2160},
-        frameRate:{ideal:30,max:60},
-        aspectRatio:{ideal:1.7777778}
-      },audio:false});
+      stream=await navigator.mediaDevices.getUserMedia(liveConstraints());
       liveTrack=stream.getVideoTracks()[0]||null;
       video.srcObject=stream;video.muted=true;await video.play();
       const settings=liveTrack?.getSettings?.()||{};
@@ -251,10 +255,13 @@ void main(){
         }
         cameraZoomVal.textContent=Number(cameraZoom.value).toFixed(1)+'×';
       }
-      setStatus('LIVE камера • '+(settings.width||video.videoWidth)+'×'+(settings.height||video.videoHeight)+' • локальна обробка.');
+      setStatus('LIVE камера • '+(settings.width||video.videoWidth)+'×'+(settings.height||video.videoHeight)+(settings.frameRate?' • '+Math.round(settings.frameRate)+' FPS':'')+' • локальна обробка.');
       start();
     }catch(e){setStatus('LIVE camera error: '+e.message);}
-  };
+  }
+  $('liveBtn').onclick=startLiveCamera;
+  if(cameraQuality)cameraQuality.onchange=()=>{if(sourceMode==='live')startLiveCamera();};
+  if(cameraFps)cameraFps.onchange=()=>{if(sourceMode==='live')startLiveCamera();};
   async function applyCameraZoom(value){
     const z=Math.max(1,Number(value)||1);
     const caps=liveTrack?.getCapabilities?.()||{};
@@ -279,7 +286,45 @@ void main(){
   play.onclick=async()=>{if(sourceMode==='photo')return;if(video.paused){await video.play();start();play.textContent='Ⅱ';}else{video.pause();stop();play.textContent='▶';}};
   video.ontimeupdate=()=>{if(sourceMode==='video'&&video.duration){seek.value=Math.round(video.currentTime/video.duration*1000);timeEl.textContent=fmt(video.currentTime)+' / '+fmt(video.duration);}};
   seek.oninput=()=>{if(sourceMode==='video'&&video.duration)video.currentTime=video.duration*Number(seek.value)/1000;};
-  $('saveFrame').onclick=()=>{out.toBlob(blob=>{if(!blob)return;const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dehaze-frame.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);},'image/png');};
+  async function toggleFreeze(){
+    if(sourceMode==='photo')return;
+    frozen=!frozen;
+    if(frozen){
+      await processFrame();
+      video.pause();stop();
+      freezeFrame.textContent='Продовжити';
+      setStatus('Стоп-кадр зафіксовано.');
+    }else{
+      try{await video.play();start();}catch(e){}
+      freezeFrame.textContent='Стоп-кадр';
+      setStatus(sourceMode==='live'?'LIVE відновлено.':'Відтворення відновлено.');
+    }
+  }
+  if(freezeFrame)freezeFrame.onclick=toggleFreeze;
+
+  function buildCaptureCanvas(){
+    if(viewMode==='processed'||viewMode==='split')return out;
+    const [w,h,src]=sourceDims();
+    if(!src||!w||!h)return out;
+    const portrait=window.matchMedia('(orientation: portrait)').matches;
+    const c=document.createElement('canvas'),cc=c.getContext('2d',{alpha:false});
+    if(portrait){c.width=out.width;c.height=out.height*2;drawSourceZoomed(cc,src,0,0,c.width,out.height);cc.drawImage(out,0,out.height,c.width,out.height);}
+    else{c.width=out.width*2;c.height=out.height;drawSourceZoomed(cc,src,0,0,out.width,c.height);cc.drawImage(out,out.width,0,out.width,c.height);}
+    return c;
+  }
+  $('saveFrame').onclick=async()=>{
+    if(sourceMode!=='photo'&&!frozen)await processFrame();
+    const capture=buildCaptureCanvas();
+    capture.toBlob(blob=>{
+      if(!blob)return;
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='digital-dehazing-'+new Date().toISOString().replace(/[:.]/g,'-')+'.png';
+      a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+      setStatus('Кадр збережено локально.');
+    },'image/png');
+  };
 
   window.addEventListener('orientationchange',()=>{if(viewMode==='split'&&sourceMode==='photo')renderPhoto();});
   window.addEventListener('resize',()=>{viewerStage.dataset.orientation=window.matchMedia('(orientation: portrait)').matches?'portrait':'landscape';});
