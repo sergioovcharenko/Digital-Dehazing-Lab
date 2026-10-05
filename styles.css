@@ -5,10 +5,10 @@ header{display:flex;justify-content:space-between;align-items:center;padding:14p
 h1{font-size:18px;margin:0}.headState span{background:#1b2633;padding:6px 10px;border-radius:8px;font-size:12px}
 main{padding:14px;display:grid;gap:14px}
 .toolbar,.viewerWrap,.bench{background:#111821;border:1px solid #263445;border-radius:14px;padding:12px}
-.sources,.algos,.controls,.viewModes{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sources,.algos,.controls,.cameraControls,.viewModes{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .sources button,.controls button,.viewModes button,.transport button{background:#1b2633;color:#eef3f8;border:1px solid #314359;border-radius:9px;padding:9px 12px}
 .sources button.active,.viewModes button.active{outline:2px solid #7cc4ff}
-.algos{margin:10px 0}.algos label,.controls label{background:#151e29;border:1px solid #2d3d51;border-radius:9px;padding:8px 10px}
+.algos{margin:10px 0}.cameraControls{margin-top:10px}.cameraControls label{background:#151e29;border:1px solid #2d3d51;border-radius:9px;padding:8px 10px}.cameraControls button{background:#1b2633;color:#eef3f8;border:1px solid #314359;border-radius:9px;padding:9px 12px}.algos label,.controls label{background:#151e29;border:1px solid #2d3d51;border-radius:9px;padding:8px 10px}
 .viewModes{margin-top:10px}
 .status{margin-bottom:8px;color:#b8c7d9}
 .viewerStage{width:100%;background:#05070a;border-radius:12px;overflow:hidden;display:grid;gap:10px;align-items:center;justify-content:center}
