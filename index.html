@@ -3,109 +3,132 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<meta name="theme-color" content="#f3f5f7"/>
+<meta name="theme-color" content="#ffffff"/>
 <title>Digital Dehazing</title>
 <link rel="manifest" href="manifest.webmanifest"/>
 <link rel="icon" type="image/png" sizes="192x192" href="icons/clearsight-192.png"/>
 <link rel="apple-touch-icon" href="icons/clearsight-192.png"/>
 <link rel="stylesheet" href="styles.css"/>
-
 </head>
 <body>
-<header><h1>Digital Dehazing</h1><div class="headState"><span id="offlineState">LOCAL</span></div></header>
-
-<main>
-<section class="toolbar">
-  <div class="sources">
-    <button id="photoBtn">Фото</button>
-    <button id="videoBtn" class="active">Відео</button>
-    <button id="liveBtn">LIVE</button>
-    <input id="photoInput" type="file" accept="image/*" hidden>
-    <input id="videoInput" type="file" accept="video/*" hidden>
-  </div>
-
-  <div class="algos" id="algos">
-    <label><input type="radio" name="algo" value="original"> Original</label>
-    <label><input type="radio" name="algo" value="classic"> Classic DCP</label>
-    <label><input type="radio" name="algo" value="webl" checked> WebL / Adaptive MAX</label>
-    <label><input type="radio" name="algo" value="edn"> EDN-GTM</label>
-    <label><input type="radio" name="algo" value="aid"> AIDTransformer</label>
-    <label><input type="radio" name="algo" value="hybrid"> Hybrid</label>
-  </div>
-
-  <div class="controls">
-    <label>Strength <input id="strength" type="range" min="0" max="100" value="70"> <span id="strengthVal">70%</span></label>
-    <label><input id="autoStrength" type="checkbox"> AUTO</label>
-    <button id="freezeFrame" type="button">Стоп-кадр</button>
-    <button id="saveFrame" type="button">Фото</button>
-  </div>
-
-  <div class="cameraControls">
-    <label>Якість
-      <select id="cameraQuality">
-        <option value="auto" selected>AUTO</option>
-        <option value="1080">1080p</option>
-        <option value="max">MAX</option>
-      </select>
-    </label>
-    <label>FPS
-      <select id="cameraFps">
-        <option value="auto" selected>AUTO</option>
-        <option value="30">30</option>
-        <option value="60">60</option>
-      </select>
-    </label>
-    <label>Zoom <input id="cameraZoom" type="range" min="1" max="6" step="0.1" value="1"> <span id="cameraZoomVal">1.0×</span></label>
-    <button id="cameraResetZoom" type="button">1×</button>
-  </div>
-
-  <div class="viewModes" aria-label="Режим перегляду">
-    <button data-view="split" class="active">50/50</button>
-    <button data-view="two">2 кадри</button>
-    <button data-view="mini">2 малі</button>
-    <button data-view="processed">Оброблений</button>
-  </div>
-</section>
-
-<section class="viewerWrap">
-  <div id="status" class="status">Оберіть відео або запустіть LIVE.</div>
-  <div id="viewerStage" class="viewerStage view-split">
-    <div id="originalPane" class="framePane originalPane">
-      <video id="video" playsinline muted></video>
-      <img id="photo" alt="" hidden>
-      <div class="frameTag">ORIGINAL</div>
+<div class="appShell">
+  <header class="topbar">
+    <div class="brand">Digital Dehazing</div>
+    <div class="sourceSwitcher">
+      <button id="photoBtn">Фото</button>
+      <button id="videoBtn">Відео</button>
+      <button id="liveBtn" class="active">LIVE</button>
     </div>
-    <div id="processedPane" class="framePane processedPane">
-      <canvas id="canvas"></canvas>
-      <div class="frameTag right" id="algoLabel">WEBL</div>
+    <span id="offlineState" class="netState">LOCAL</span>
+  </header>
+
+  <input id="photoInput" type="file" accept="image/*" hidden>
+  <input id="videoInput" type="file" accept="video/*" hidden>
+
+  <main class="viewerPage">
+    <div id="viewerStage" class="viewerStage view-split">
+      <div id="originalPane" class="framePane originalPane">
+        <video id="video" playsinline muted></video>
+        <img id="photo" alt="" hidden>
+        <div class="frameTag">ORIGINAL</div>
+      </div>
+      <div id="processedPane" class="framePane processedPane">
+        <canvas id="canvas"></canvas>
+        <div class="frameTag right" id="algoLabel">AUTO</div>
+      </div>
     </div>
-  </div>
 
-  <div class="transport">
-    <button id="play">▶</button>
-    <input id="seek" type="range" min="0" max="1000" value="0">
-    <span id="time">00:00 / 00:00</span>
-  </div>
+    <div id="status" class="statusPill">Готово</div>
 
-  <div class="processingBar">
-    <span><b>Engine:</b> <span id="engineStat">WEBL</span></span>
-    <span><b>Processing:</b> <span id="latency">— ms</span></span>
-    <span><b>FPS:</b> <span id="fps">— FPS</span></span>
-    <span><b>Source:</b> <span id="sourceStat">—</span></span>
-    <span><b>Output:</b> <span id="outputStat">—</span></span>
-  </div>
-</section>
+    <div class="bottomOverlay">
+      <div class="transport">
+        <button id="play" class="roundBtn">▶</button>
+        <input id="seek" type="range" min="0" max="1000" value="0">
+        <span id="time">00:00 / 00:00</span>
+      </div>
 
-<section class="bench">
-  <h2>Порівняння</h2>
-  <div class="cards">
-    <div><b>Classic DCP</b><span id="bClassic">не тестовано</span></div>
-    <div><b>WebL</b><span id="bWebl">не тестовано</span></div>
-    <div><b>EDN-GTM</b><span id="bEdn">модель не завантажена</span></div>
-    <div><b>AIDTransformer</b><span id="bAid">модель не завантажена</span></div>
-  </div>
-</section>
-</main>
+      <div class="processingBar">
+        <span><b id="engineStat">AUTO</b></span>
+        <span id="latency">— ms</span>
+        <span id="fps">— FPS</span>
+        <span id="sourceStat">—</span>
+        <span id="outputStat">—</span>
+      </div>
+    </div>
+
+    <button id="freezeFrame" class="floatingAction freeze" type="button">❚❚</button>
+    <button id="saveFrame" class="floatingAction shot" type="button">◉</button>
+    <button id="settingsBtn" class="floatingAction gear" type="button" aria-label="Налаштування">⚙</button>
+  </main>
+
+  <div id="settingsBackdrop" class="settingsBackdrop" hidden></div>
+  <aside id="settingsPanel" class="settingsPanel" aria-hidden="true">
+    <div class="sheetHandle"></div>
+    <div class="sheetHeader">
+      <strong>Налаштування</strong>
+      <button id="settingsClose" class="closeBtn">×</button>
+    </div>
+
+    <section class="settingSection">
+      <div class="settingTitle">Режим обробки</div>
+      <div class="segmented">
+        <button id="modeAuto" class="active">AUTO</button>
+        <button id="modeManual">MANUAL</button>
+      </div>
+      <div id="manualLevels" class="segmented three" hidden>
+        <button data-strength="35">LOW</button>
+        <button data-strength="65" class="active">MEDIUM</button>
+        <button data-strength="90">HIGH</button>
+      </div>
+      <input id="autoStrength" type="checkbox" checked hidden>
+      <input id="strength" type="range" min="0" max="100" value="65" hidden>
+      <span id="strengthVal" hidden>65%</span>
+    </section>
+
+    <section class="settingSection">
+      <div class="settingTitle">Вигляд</div>
+      <div class="viewModes">
+        <button data-view="split" class="active">50/50</button>
+        <button data-view="two">2 кадри</button>
+        <button data-view="mini">2 малі</button>
+        <button data-view="processed">Оброблений</button>
+      </div>
+    </section>
+
+    <section class="settingSection cameraControls">
+      <div class="settingTitle">Камера</div>
+      <label>Якість
+        <select id="cameraQuality">
+          <option value="auto" selected>AUTO</option>
+          <option value="1080">1080p</option>
+          <option value="max">MAX</option>
+        </select>
+      </label>
+      <label>FPS
+        <select id="cameraFps">
+          <option value="auto" selected>AUTO</option>
+          <option value="30">30</option>
+          <option value="60">60</option>
+        </select>
+      </label>
+      <label>Zoom
+        <input id="cameraZoom" type="range" min="1" max="6" step="0.1" value="1">
+        <span id="cameraZoomVal">1.0×</span>
+      </label>
+      <button id="cameraResetZoom" type="button">Скинути zoom до 1×</button>
+    </section>
+
+    <div class="developerHidden" hidden>
+      <input type="radio" name="algo" value="original">
+      <input type="radio" name="algo" value="classic">
+      <input type="radio" name="algo" value="webl" checked>
+      <input type="radio" name="algo" value="edn">
+      <input type="radio" name="algo" value="aid">
+      <input type="radio" name="algo" value="hybrid">
+      <span id="bClassic"></span><span id="bWebl"></span><span id="bEdn"></span><span id="bAid"></span>
+    </div>
+  </aside>
+</div>
 
 <script src="classic-dcp.js"></script>
 <script src="app.js"></script>
