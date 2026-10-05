@@ -216,7 +216,13 @@ void main(){
   function start(){if(running)return;running=true;lastTs=0;frames=0;fpsTs=0;raf=requestAnimationFrame(loop);}
   function stop(){running=false;cancelAnimationFrame(raf);fpsEl.textContent='— FPS';}
 
-  function activate(mode){sourceMode=mode;['photoBtn','videoBtn','liveBtn'].forEach(id=>$(id).classList.remove('active'));$(mode+'Btn').classList.add('active');}
+  function activate(mode){
+    sourceMode=mode;
+    ['photoBtn','videoBtn','liveBtn'].forEach(id=>$(id).classList.remove('active'));
+    $(mode+'Btn').classList.add('active');
+    if(mode==='photo'){photo.hidden=false;video.hidden=true;}
+    else{photo.hidden=true;video.hidden=false;}
+  }
   $('photoBtn').onclick=()=>{$('photoInput').click();};
   $('videoBtn').onclick=()=>{$('videoInput').click();};
   $('liveBtn').onclick=async()=>{
