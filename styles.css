@@ -1,86 +1,79 @@
-:root{color-scheme:light;font-family:Inter,system-ui,sans-serif}
+:root{color-scheme:light;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 *{box-sizing:border-box}
-body{margin:0;background:#f3f5f7;color:#1f2933}
-header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:#ffffff;position:sticky;top:0;z-index:5;border-bottom:1px solid #d7dee6}
-h1{font-size:18px;margin:0}.headState span{background:#eef2f6;padding:6px 10px;border-radius:8px;font-size:12px}
-main{padding:14px;display:grid;gap:14px}
-.toolbar,.viewerWrap,.bench{background:#ffffff;border:1px solid #d7dee6;border-radius:14px;padding:12px}
-.sources,.algos,.controls,.cameraControls,.viewModes{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.sources button,.controls button,.viewModes button,.transport button{background:#eef2f6;color:#1f2933;border:1px solid #c6d0da;border-radius:9px;padding:9px 12px}
-.sources button.active,.viewModes button.active{outline:2px solid #7cc4ff}
-.algos{margin:10px 0}.cameraControls{margin-top:10px}.cameraControls label{background:#f7f9fb;border:1px solid #d7dee6;border-radius:9px;padding:8px 10px}.cameraControls button{background:#eef2f6;color:#1f2933;border:1px solid #c6d0da;border-radius:9px;padding:9px 12px}.algos label,.controls label{background:#f7f9fb;border:1px solid #d7dee6;border-radius:9px;padding:8px 10px}
-.viewModes{margin-top:10px}
-.status{margin-bottom:8px;color:#607080}
-.viewerStage{width:100%;background:#05070a;border-radius:12px;overflow:hidden;display:grid;gap:10px;align-items:center;justify-content:center}
-.framePane{position:relative;background:#05070a;overflow:hidden;border-radius:10px;display:grid;place-items:center;min-width:0}
-.framePane video,.framePane img,.framePane canvas{width:100%;height:100%;object-fit:contain;display:block;background:#05070a}
-.framePane canvas{aspect-ratio:16/9}
-.frameTag{position:absolute;top:8px;left:8px;padding:4px 7px;background:#0009;border-radius:6px;font-size:12px;z-index:2}
-.frameTag.right{left:auto;right:8px}
-.viewerStage.view-split{position:relative;display:block;aspect-ratio:16/9}
-.viewerStage.view-split .originalPane{display:none}
-.viewerStage.view-split .processedPane{position:absolute;inset:0}
-.viewerStage.view-two{grid-template-columns:1fr 1fr;padding:10px}
-.viewerStage.view-two .framePane{aspect-ratio:16/9}
-.viewerStage.view-mini{grid-template-columns:minmax(220px,560px) minmax(220px,560px);padding:18px}
-.viewerStage.view-mini .framePane{aspect-ratio:16/9;max-width:560px}
-.viewerStage.view-processed{display:block;aspect-ratio:16/9}
-.viewerStage.view-processed .originalPane{display:none}
-.viewerStage.view-processed .processedPane{position:absolute;inset:0}
-.transport{display:flex;gap:10px;align-items:center;margin-top:10px}.transport input{flex:1}
-.processingBar{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:10px;padding:9px 11px;background:#f7f9fb;border:1px solid #d7dee6;border-radius:10px;font-size:13px;font-variant-numeric:tabular-nums;color:#536271}
-.processingBar b{color:#1f2933}
-.bench h2{font-size:16px;margin:0 0 10px}
-.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.cards>div{background:#f7f9fb;border:1px solid #d7dee6;border-radius:10px;padding:10px;display:grid;gap:5px}.cards span{font-size:13px;color:#607080}
-@media(max-width:900px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.viewerStage.view-two,.viewerStage.view-mini{grid-template-columns:1fr}}
-
-html,body{max-width:100%;overflow-x:hidden}
-button,input{font:inherit}
-button{min-height:42px;touch-action:manipulation}
-input[type=range]{max-width:100%}
-@media(max-width:700px){
-  header{padding:10px 12px}
-  h1{font-size:16px}
-  main{padding:8px;gap:8px}
-  .toolbar,.viewerWrap,.bench{padding:8px;border-radius:10px}
-  .sources,.controls,.cameraControls,.viewModes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
-  .algos{display:grid;grid-template-columns:1fr 1fr;width:100%}
-  .algos label,.controls label,.cameraControls label{min-width:0}
-  .viewerStage.view-two,.viewerStage.view-mini{grid-template-columns:1fr;padding:6px}
-  .viewerStage.view-mini .framePane{max-width:none;width:100%}
-  .transport{display:grid;grid-template-columns:auto 1fr;gap:8px}
-  .transport #time{grid-column:1/-1;text-align:center}
-  .processingBar{gap:8px;font-size:12px}
+html,body{margin:0;min-height:100%;background:#000;color:#18202a;overflow:hidden}
+button,input,select{font:inherit}
+button{touch-action:manipulation}
+.appShell{height:100dvh;display:grid;grid-template-rows:auto 1fr;background:#000}
+.topbar{display:flex;align-items:center;gap:10px;padding:max(8px,env(safe-area-inset-top)) 10px 8px;background:#fff;border-bottom:1px solid #dfe4ea;z-index:20}
+.brand{font-weight:700;white-space:nowrap}
+.sourceSwitcher{display:flex;gap:6px;flex:1;justify-content:center}
+.sourceSwitcher button{border:1px solid #cbd4de;background:#f4f6f8;border-radius:10px;padding:7px 12px;min-height:36px}
+.sourceSwitcher button.active{background:#e7f1fb;outline:2px solid #6aa5df}
+.netState{font-size:12px;background:#eef2f5;padding:6px 8px;border-radius:9px;color:#536271}
+.viewerPage{position:relative;min-height:0;background:#000;overflow:hidden}
+.viewerStage{position:absolute;inset:0;background:#05070a;overflow:hidden}
+.framePane{position:absolute;inset:0;background:#05070a;display:grid;place-items:center;overflow:hidden}
+.framePane video,.framePane img,.framePane canvas{width:100%;height:100%;display:block;object-fit:contain;background:#05070a}
+.frameTag{position:absolute;top:10px;left:10px;padding:5px 8px;border-radius:8px;background:#0008;color:#fff;font-size:12px;z-index:4}
+.frameTag.right{left:auto;right:10px}
+.view-split .originalPane{display:none}
+.view-processed .originalPane{display:none}
+.view-two,.view-mini{display:grid;gap:6px;padding:6px}
+.view-two .framePane,.view-mini .framePane{position:relative;inset:auto}
+.view-two{grid-template-columns:1fr 1fr}
+.view-mini{grid-template-columns:1fr 1fr;align-content:end}
+.view-mini .framePane{height:32vh;border-radius:12px}
+.statusPill{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:6;max-width:70%;padding:6px 10px;border-radius:999px;background:#fffde8d9;color:#303846;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 8px #0002}
+.bottomOverlay{position:absolute;left:10px;right:10px;bottom:max(10px,env(safe-area-inset-bottom));z-index:7;display:grid;gap:7px;pointer-events:none}
+.transport,.processingBar{pointer-events:auto}
+.transport{display:flex;align-items:center;gap:8px;background:#ffffffed;border-radius:14px;padding:7px 9px;box-shadow:0 4px 18px #0003}
+.transport input{flex:1;min-width:40px}
+.transport #time{font-size:12px;white-space:nowrap}
+.roundBtn{width:40px;height:40px;border-radius:50%;border:1px solid #ccd5df;background:#fff}
+.processingBar{display:flex;gap:10px;flex-wrap:wrap;background:#ffffffeb;border-radius:12px;padding:7px 10px;font-size:12px;box-shadow:0 4px 18px #0002;color:#536271}
+.processingBar b{color:#18202a}
+.floatingAction{position:absolute;z-index:10;width:48px;height:48px;border-radius:50%;border:1px solid #d2dae3;background:#fffffff2;box-shadow:0 5px 18px #0004;font-size:22px;display:grid;place-items:center}
+.gear{right:14px;bottom:112px;font-size:24px}
+.shot{right:14px;bottom:170px}
+.freeze{right:14px;bottom:228px;font-size:17px}
+.settingsBackdrop{position:fixed;inset:0;background:#0005;z-index:29}
+.settingsPanel{position:fixed;z-index:30;background:#fff;box-shadow:0 -12px 35px #0004;transition:transform .22s ease}
+.sheetHandle{width:42px;height:5px;border-radius:5px;background:#c9d0d8;margin:8px auto 4px}
+.sheetHeader{display:flex;justify-content:space-between;align-items:center;padding:6px 16px 10px;border-bottom:1px solid #e4e8ed}
+.closeBtn{border:0;background:transparent;font-size:28px;line-height:1}
+.settingSection{padding:12px 16px;border-bottom:1px solid #edf0f3}
+.settingTitle{font-size:13px;font-weight:700;color:#5b6875;margin-bottom:8px}
+.segmented,.viewModes{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.segmented.three{grid-template-columns:repeat(3,1fr);margin-top:8px}
+.segmented button,.viewModes button,.cameraControls button{border:1px solid #ccd5df;background:#f3f6f8;border-radius:10px;min-height:42px;padding:8px}
+.segmented button.active,.viewModes button.active{background:#e7f1fb;outline:2px solid #6aa5df}
+.cameraControls{display:grid;gap:8px}
+.cameraControls label{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;background:#f7f9fb;border:1px solid #e0e6ec;border-radius:10px;padding:9px}
+.cameraControls select{justify-self:end;min-height:34px;border:1px solid #cbd4de;background:#fff;border-radius:8px;padding:4px 8px}
+.cameraControls input[type=range]{width:100%}
+@media (orientation:portrait){
+  .settingsPanel{left:0;right:0;bottom:0;max-height:76dvh;overflow:auto;border-radius:18px 18px 0 0;transform:translateY(105%)}
+  .settingsPanel.open{transform:translateY(0)}
+  .view-two,.view-mini{grid-template-columns:1fr;grid-template-rows:1fr 1fr}
+  .view-mini{align-content:end}
 }
-@media(max-width:430px){
-  .algos,.sources,.controls,.cameraControls,.viewModes{grid-template-columns:1fr}
-  .processingBar{display:grid;grid-template-columns:1fr 1fr}
-  .frameTag{font-size:10px}
+@media (orientation:landscape){
+  .settingsPanel{top:0;right:0;bottom:0;width:min(390px,88vw);overflow:auto;transform:translateX(105%)}
+  .settingsPanel.open{transform:translateX(0)}
 }
-@media(orientation:landscape) and (max-height:600px){
-  header{position:static}
-  main{padding:6px}
-  .toolbar{padding:6px}
-  .algos{margin:6px 0}
-  .viewerStage.view-split,.viewerStage.view-processed{max-height:calc(100vh - 210px)}
-  .viewerStage.view-two,.viewerStage.view-mini{grid-template-columns:1fr 1fr;padding:6px}
-  .processingBar{margin-top:6px;padding:6px 8px}
+@media(max-width:520px){
+  .brand{font-size:15px}
+  .sourceSwitcher button{padding:6px 9px;font-size:13px}
+  .netState{display:none}
+  .processingBar{font-size:11px;gap:7px}
+  .bottomOverlay{right:70px}
 }
-@supports(padding:max(0px)){
-  body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
-  header{padding-top:max(10px,env(safe-area-inset-top))}
-  main{padding-bottom:max(8px,env(safe-area-inset-bottom))}
+@media(max-height:520px) and (orientation:landscape){
+  .topbar{padding-top:6px;padding-bottom:6px}
+  .brand{font-size:14px}
+  .bottomOverlay{right:75px;left:8px;bottom:8px}
+  .processingBar{display:none}
+  .gear{bottom:14px}
+  .shot{bottom:70px}
+  .freeze{bottom:126px}
 }
-
-.cameraControls select{
-  background:#f7f9fb;color:#1f2933;border:1px solid #c6d0da;border-radius:7px;
-  min-height:34px;padding:4px 8px;margin-left:6px
-}
-.controls button.active,.cameraControls button.active{outline:2px solid #7cc4ff}
-
-header{box-shadow:0 1px 6px rgba(16,24,40,.06)}
-.toolbar,.viewerWrap,.bench{box-shadow:0 1px 4px rgba(16,24,40,.04)}
-.sources button.active,.viewModes button.active{outline:2px solid #5b9bd5;background:#eaf3fb}
-.headState span{background:#eef2f6;color:#44515f}
-.status{color:#607080}
-.viewerStage,.framePane,.framePane video,.framePane img,.framePane canvas{background:#0b0d10}
