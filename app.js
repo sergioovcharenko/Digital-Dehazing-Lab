@@ -9,7 +9,9 @@
   const viewerStage=$('viewerStage'), engineStat=$('engineStat'), sourceStat=$('sourceStat'), outputStat=$('outputStat');
   const settingsBtn=$('settingsBtn'),settingsPanel=$('settingsPanel'),settingsBackdrop=$('settingsBackdrop'),settingsClose=$('settingsClose');
   const modeAuto=$('modeAuto'),modeManual=$('modeManual'),manualLevels=$('manualLevels');
-  const seek=$('seek'), timeEl=$('time'), play=$('play');
+  const seek=$('seek'), timeEl=$('time'), play=$('play'), transportBar=$('transportBar');
+  const back10=$('back10'),forward10=$('forward10'),modeStat=$('modeStat'),sceneStat=$('sceneStat');
+  const advancedToggle=$('advancedToggle'),advancedAlgorithms=$('advancedAlgorithms');
   const bClassic=$('bClassic'), bWebl=$('bWebl'), bEdn=$('bEdn'), bAid=$('bAid');
   let sourceMode='video', stream=null, objectUrl=null, running=false, raf=0, lastTs=0, frames=0, fpsTs=0;
   let viewMode='split', liveTrack=null, digitalZoom=1, frozen=false;
@@ -18,6 +20,13 @@
   const bench={classic:[],webl:[],edn:[],aid:[]};
 
   function algo(){return document.querySelector('input[name=algo]:checked')?.value||'webl';}
+  function engineName(){
+    return ({original:'OFF',classic:'DCP',webl:'WEBL',edn:'EDN-GTM',aid:'AID',hybrid:'HYBRID'})[algo()]||algo().toUpperCase();
+  }
+  function manualLevelName(){
+    const v=Number(strength.value);
+    return v<50?'LOW':v<80?'MEDIUM':'HIGH';
+  }
   function setStatus(s){status.textContent=s;}
   function fmt(t){t=Math.max(0,Math.floor(t||0));return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');}
   function strength01(){return autoStrength.checked?autoS:Number(strength.value)/100;}
@@ -165,7 +174,9 @@ void main(){
     autoContrast=autoContrast*.85+contrastTarget*.15;
     autoDenoise=autoDenoise*.85+denoiseTarget*.15;
 
-    if(engineStat)engineStat.textContent=(autoStrength.checked?'AUTO':'MANUAL')+' • '+sceneMode;
+    if(modeStat)modeStat.textContent=autoStrength.checked?'AUTO':('MANUAL '+manualLevelName());
+    if(sceneStat)sceneStat.textContent=sceneMode;
+    if(engineStat)engineStat.textContent=engineName();
     setLabels();
   }
 
@@ -232,7 +243,9 @@ void main(){
   async function processFrame(now=performance.now()){
     const [w,h,src]=sourceDims();if(!src||!w||!h)return;
     analyzeAuto(src,w,h,now);const a=algo(),s=strength01(),t0=performance.now();
-    if(engineStat)engineStat.textContent=(autoStrength.checked?'AUTO':'MANUAL')+' • '+sceneMode;
+    if(modeStat)modeStat.textContent=autoStrength.checked?'AUTO':('MANUAL '+manualLevelName());
+    if(sceneStat)sceneStat.textContent=sceneMode;
+    if(engineStat)engineStat.textContent=engineName();
     if(sourceStat)sourceStat.textContent=w+'×'+h;
     try{
       if(a==='original'){compose(src,src,w,h);}
@@ -261,6 +274,7 @@ void main(){
 
   function activate(mode){
     sourceMode=mode;
+    if(transportBar)transportBar.hidden=mode!=='video';
     ['photoBtn','videoBtn','liveBtn'].forEach(id=>$(id).classList.remove('active'));
     $(mode+'Btn').classList.add('active');
     if(mode==='photo'){photo.hidden=false;video.hidden=true;}
@@ -326,7 +340,9 @@ void main(){
     video.srcObject=null;video.src=objectUrl;video.loop=false;video.muted=true;video.onloadedmetadata=()=>viewerStage.style.setProperty('--media-aspect',video.videoWidth+' / '+video.videoHeight);await video.play().catch(()=>{});setStatus('Відео: '+f.name);start();
   };
   async function renderPhoto(){if(sourceMode!=='photo'||!currentPhoto)return;await processFrame();}
-  play.onclick=async()=>{if(sourceMode==='photo')return;if(video.paused){await video.play();start();play.textContent='Ⅱ';}else{video.pause();stop();play.textContent='▶';}};
+  play.onclick=async()=>{if(sourceMode!=='video')return;if(video.paused){await video.play();start();play.textContent='Ⅱ';}else{video.pause();stop();play.textContent='▶';}};
+  if(back10)back10.onclick=()=>{if(sourceMode==='video'&&Number.isFinite(video.duration))video.currentTime=Math.max(0,video.currentTime-10);};
+  if(forward10)forward10.onclick=()=>{if(sourceMode==='video'&&Number.isFinite(video.duration))video.currentTime=Math.min(video.duration,video.currentTime+10);};
   video.ontimeupdate=()=>{if(sourceMode==='video'&&video.duration){seek.value=Math.round(video.currentTime/video.duration*1000);timeEl.textContent=fmt(video.currentTime)+' / '+fmt(video.duration);}};
   seek.oninput=()=>{if(sourceMode==='video'&&video.duration)video.currentTime=video.duration*Number(seek.value)/1000;};
   async function toggleFreeze(){
@@ -378,6 +394,11 @@ void main(){
   if(settingsBtn)settingsBtn.onclick=openSettings;
   if(settingsClose)settingsClose.onclick=closeSettings;
   if(settingsBackdrop)settingsBackdrop.onclick=closeSettings;
+  if(advancedToggle)advancedToggle.onclick=()=>{
+    const show=advancedAlgorithms.hidden;
+    advancedAlgorithms.hidden=!show;
+    advancedToggle.textContent=show?'Сховати розширені режими':'Показати приховані режими';
+  };
 
   function setMode(auto){
     autoStrength.checked=auto;
@@ -409,5 +430,9 @@ void main(){
   $('offlineState').textContent=navigator.onLine?'ONLINE':'OFFLINE';
   setLabels();
   setMode(true);
+  if(transportBar)transportBar.hidden=true;
+  if(modeStat)modeStat.textContent='AUTO';
+  if(sceneStat)sceneStat.textContent=sceneMode;
+  if(engineStat)engineStat.textContent=engineName();
   setStatus('AUTO • оберіть Фото, Відео або LIVE');
 })();
