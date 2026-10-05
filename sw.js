@@ -1,4 +1,4 @@
-const CACHE='digital-dehazing-lab-v2';
+const CACHE='digital-dehazing-lab-v4';
 const CORE=['./','./index.html','./styles.css','./app.js','./classic-dcp.js','./manifest.webmanifest'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)).then(()=>self.skipWaiting()));
@@ -9,12 +9,12 @@ self.addEventListener('activate',event=>{
 self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET')return;
   event.respondWith(
-    caches.match(event.request).then(hit=>hit||fetch(event.request).then(res=>{
+    fetch(event.request).then(res=>{
       if(res&&res.status===200&&res.type!=='opaque'){
         const copy=res.clone();
         caches.open(CACHE).then(cache=>cache.put(event.request,copy));
       }
       return res;
-    }).catch(()=>hit))
+    }).catch(()=>caches.match(event.request))
   );
 });
