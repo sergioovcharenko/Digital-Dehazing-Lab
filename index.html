@@ -41,18 +41,21 @@
     <div id="status" class="statusPill">Готово</div>
 
     <div class="bottomOverlay">
-      <div class="transport">
-        <button id="play" class="roundBtn">▶</button>
+      <div class="transport" id="transportBar" hidden>
+        <button id="back10" class="roundBtn skipBtn" type="button">−10</button>
+        <button id="play" class="roundBtn" type="button">▶</button>
+        <button id="forward10" class="roundBtn skipBtn" type="button">+10</button>
         <input id="seek" type="range" min="0" max="1000" value="0">
         <span id="time">00:00 / 00:00</span>
       </div>
 
       <div class="processingBar">
-        <span><b id="engineStat">AUTO</b></span>
+        <span id="modeStat">AUTO</span>
+        <span id="sceneStat">DAY</span>
+        <span id="engineStat">WEBL</span>
         <span id="latency">— ms</span>
         <span id="fps">— FPS</span>
         <span id="sourceStat">—</span>
-        <span id="outputStat">—</span>
       </div>
     </div>
 
@@ -95,6 +98,19 @@
       </div>
     </section>
 
+    <section class="settingSection">
+      <div class="settingTitle">Розширені алгоритми</div>
+      <button id="advancedToggle" class="wideSettingBtn" type="button">Показати приховані режими</button>
+      <div id="advancedAlgorithms" class="advancedAlgorithms" hidden>
+        <label><input type="radio" name="algo" value="original"> OFF / Original</label>
+        <label><input type="radio" name="algo" value="classic"> Classic DCP</label>
+        <label><input type="radio" name="algo" value="webl" checked> WebL / Adaptive MAX</label>
+        <label><input type="radio" name="algo" value="edn"> EDN-GTM</label>
+        <label><input type="radio" name="algo" value="aid"> AIDTransformer</label>
+        <label><input type="radio" name="algo" value="hybrid"> Hybrid</label>
+      </div>
+    </section>
+
     <section class="settingSection cameraControls">
       <div class="settingTitle">Камера</div>
       <label>Якість
@@ -119,12 +135,6 @@
     </section>
 
     <div class="developerHidden" hidden>
-      <input type="radio" name="algo" value="original">
-      <input type="radio" name="algo" value="classic">
-      <input type="radio" name="algo" value="webl" checked>
-      <input type="radio" name="algo" value="edn">
-      <input type="radio" name="algo" value="aid">
-      <input type="radio" name="algo" value="hybrid">
       <span id="bClassic"></span><span id="bWebl"></span><span id="bEdn"></span><span id="bAid"></span>
     </div>
   </aside>
