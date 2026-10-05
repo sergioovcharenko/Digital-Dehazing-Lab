@@ -34,10 +34,25 @@
   <div class="controls">
     <label>Strength <input id="strength" type="range" min="0" max="100" value="70"> <span id="strengthVal">70%</span></label>
     <label><input id="autoStrength" type="checkbox"> AUTO</label>
-    <button id="saveFrame">Зберегти кадр</button>
+    <button id="freezeFrame" type="button">Стоп-кадр</button>
+    <button id="saveFrame" type="button">Фото</button>
   </div>
 
   <div class="cameraControls">
+    <label>Якість
+      <select id="cameraQuality">
+        <option value="auto" selected>AUTO</option>
+        <option value="1080">1080p</option>
+        <option value="max">MAX</option>
+      </select>
+    </label>
+    <label>FPS
+      <select id="cameraFps">
+        <option value="auto" selected>AUTO</option>
+        <option value="30">30</option>
+        <option value="60">60</option>
+      </select>
+    </label>
     <label>Zoom <input id="cameraZoom" type="range" min="1" max="6" step="0.1" value="1"> <span id="cameraZoomVal">1.0×</span></label>
     <button id="cameraResetZoom" type="button">1×</button>
   </div>
