@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Digital Dehazing Lab</title>
+<link rel="stylesheet" href="styles.css"/>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+</head>
+<body>
+<header><h1>Digital Dehazing Lab</h1><div class="meta"><span id="fps">— FPS</span><span id="latency">— ms</span></div></header>
+
+<main>
+<section class="toolbar">
+  <div class="sources">
+    <button id="photoBtn">Фото</button>
+    <button id="videoBtn" class="active">Відео</button>
+    <button id="liveBtn">LIVE</button>
+    <input id="photoInput" type="file" accept="image/*" hidden>
+    <input id="videoInput" type="file" accept="video/*" hidden>
+  </div>
+  <div class="algos" id="algos">
+    <label><input type="radio" name="algo" value="original"> Original</label>
+    <label><input type="radio" name="algo" value="classic"> Classic DCP</label>
+    <label><input type="radio" name="algo" value="webl" checked> WebL / Adaptive MAX</label>
+    <label><input type="radio" name="algo" value="edn"> EDN-GTM</label>
+    <label><input type="radio" name="algo" value="aid"> AIDTransformer</label>
+    <label><input type="radio" name="algo" value="hybrid"> Hybrid</label>
+  </div>
+  <div class="controls">
+    <label>Strength <input id="strength" type="range" min="0" max="100" value="70"> <span id="strengthVal">70%</span></label>
+    <label><input id="split" type="checkbox" checked> 50/50</label>
+    <label><input id="autoStrength" type="checkbox"> AUTO</label>
+    <button id="saveFrame">Зберегти кадр</button>
+  </div>
+</section>
+
+<section class="viewerWrap">
+  <div id="status" class="status">Оберіть відео або запустіть LIVE.</div>
+  <div class="viewer">
+    <video id="video" playsinline muted></video>
+    <img id="photo" alt="" hidden>
+    <canvas id="canvas"></canvas>
+    <div class="splitLabel left">ORIGINAL</div>
+    <div class="splitLabel right" id="algoLabel">WEBL</div>
+  </div>
+  <div class="transport">
+    <button id="play">▶</button>
+    <input id="seek" type="range" min="0" max="1000" value="0">
+    <span id="time">00:00 / 00:00</span>
+  </div>
+</section>
+
+<section class="bench">
+  <h2>Порівняння</h2>
+  <div class="cards">
+    <div><b>Classic DCP</b><span id="bClassic">не тестовано</span></div>
+    <div><b>WebL</b><span id="bWebl">не тестовано</span></div>
+    <div><b>EDN-GTM</b><span id="bEdn">модель не завантажена</span></div>
+    <div><b>AIDTransformer</b><span id="bAid">модель не завантажена</span></div>
+  </div>
+</section>
+</main>
+
+<script src="classic-dcp.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
