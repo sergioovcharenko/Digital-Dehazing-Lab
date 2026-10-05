@@ -1,13 +1,13 @@
 {
-  "name": "ClearSight Dehaze",
-  "short_name": "ClearSight",
+  "name": "Digital Dehazing",
+  "short_name": "Digital Dehazing",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#f3f5f7",
   "theme_color": "#f3f5f7",
-  "description": "Offline-first local dehazing lab for photo, recorded video and live camera.",
+  "description": "Offline-first Digital Dehazing app for photo, recorded video and live camera.",
   "icons": [
     {
       "src": "icons/clearsight-192.png",
