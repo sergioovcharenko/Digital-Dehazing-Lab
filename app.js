@@ -14,7 +14,7 @@
   const advancedToggle=$('advancedToggle'),advancedAlgorithms=$('advancedAlgorithms');
   const bClassic=$('bClassic'), bWebl=$('bWebl'), bEdn=$('bEdn'), bAid=$('bAid');
   let sourceMode='video', stream=null, objectUrl=null, running=false, raf=0, lastTs=0, frames=0, fpsTs=0;
-  let viewMode='split', liveTrack=null, digitalZoom=1, frozen=false;
+  let viewMode='split', splitDirection='auto', liveTrack=null, digitalZoom=1, frozen=false;
   let autoS=.60, autoTs=0, currentPhoto=null, sceneMode='DAY', autoContrast=1, autoDenoise=0;
   let aiBusy=false;
   const bench={classic:[],webl:[],edn:[],aid:[]};
@@ -37,6 +37,11 @@
   }
   strength.oninput=()=>{setLabels(); if(sourceMode==='photo') renderPhoto();};
   autoStrength.onchange=()=>{setLabels(); if(sourceMode==='photo') renderPhoto();};
+  document.querySelectorAll('[data-split]').forEach(btn=>btn.onclick=()=>{
+    splitDirection=btn.dataset.split;
+    document.querySelectorAll('[data-split]').forEach(b=>b.classList.toggle('active',b===btn));
+    if(sourceMode==='photo')renderPhoto();
+  });
   document.querySelectorAll('[data-view]').forEach(btn=>btn.onclick=()=>{
     viewMode=btn.dataset.view;
     document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b===btn));
@@ -221,17 +226,15 @@ void main(){
     ctx.clearRect(0,0,rw,rh);
     if(viewMode==='split'){
       const portrait=window.matchMedia('(orientation: portrait)').matches;
+      const horizontal=splitDirection==='horizontal'||(splitDirection==='auto'&&portrait);
       drawSourceZoomed(ctx,src,0,0,rw,rh);
       ctx.save();
       ctx.beginPath();
-      if(portrait)ctx.rect(0,rh/2,rw,rh/2);
+      if(horizontal)ctx.rect(0,rh/2,rw,rh/2);
       else ctx.rect(rw/2,0,rw/2,rh);
       ctx.clip();
       ctx.drawImage(processed,0,0,rw,rh);
       ctx.restore();
-      ctx.fillStyle='#fff';
-      if(portrait)ctx.fillRect(0,rh/2-1,rw,2);
-      else ctx.fillRect(rw/2-1,0,2,rh);
     }else ctx.drawImage(processed,0,0,rw,rh);
   }
   function recordBench(kind,ms){
@@ -424,7 +427,9 @@ void main(){
 
   window.addEventListener('orientationchange',()=>{if(viewMode==='split'&&sourceMode==='photo')renderPhoto();});
   window.addEventListener('resize',()=>{viewerStage.dataset.orientation=window.matchMedia('(orientation: portrait)').matches?'portrait':'landscape';});
-  if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});
+  }
   window.addEventListener('online',()=>{$('offlineState').textContent='ONLINE';});
   window.addEventListener('offline',()=>{$('offlineState').textContent='OFFLINE';});
   $('offlineState').textContent=navigator.onLine?'ONLINE':'OFFLINE';
