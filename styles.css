@@ -13,7 +13,8 @@ button{touch-action:manipulation}
 .viewerPage{position:relative;min-height:0;background:#000;overflow:hidden}
 .viewerStage{position:absolute;inset:0;background:#05070a;overflow:hidden}
 .framePane{position:absolute;inset:0;background:#05070a;display:grid;place-items:center;overflow:hidden}
-.framePane video,.framePane img,.framePane canvas{width:100%;height:100%;display:block;object-fit:contain;background:#05070a}
+.framePane video,.framePane img{width:100%;height:100%;display:block;object-fit:contain;background:#05070a}
+.framePane canvas{display:block;background:#05070a;max-width:100%;max-height:100%;width:auto;height:auto}
 .frameTag{position:absolute;top:10px;left:10px;padding:5px 8px;border-radius:8px;background:#0008;color:#fff;font-size:12px;z-index:4}
 .frameTag.right{left:auto;right:10px}
 .view-split .originalPane{display:none}
@@ -76,4 +77,15 @@ button{touch-action:manipulation}
   .gear{bottom:14px}
   .shot{bottom:70px}
   .freeze{bottom:126px}
+}
+
+.viewerStage{display:flex;align-items:center;justify-content:center}
+.viewerStage.view-two,.viewerStage.view-mini{display:grid}
+.viewerStage.view-split .processedPane,.viewerStage.view-processed .processedPane{display:flex;align-items:center;justify-content:center}
+.viewerStage.view-split canvas,.viewerStage.view-processed canvas{width:100%;height:100%;object-fit:contain}
+@media (orientation:portrait){
+  .viewerStage.view-two,.viewerStage.view-mini{grid-template-columns:1fr;grid-template-rows:1fr 1fr}
+  .viewerStage.view-two .framePane,.viewerStage.view-mini .framePane{min-height:0;height:auto}
+  .viewerStage.view-two img,.viewerStage.view-two video,.viewerStage.view-mini img,.viewerStage.view-mini video,
+  .viewerStage.view-two canvas,.viewerStage.view-mini canvas{max-width:100%;max-height:100%;width:100%;height:100%;object-fit:contain}
 }
