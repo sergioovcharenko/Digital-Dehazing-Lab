@@ -33,3 +33,41 @@ main{padding:14px;display:grid;gap:14px}
 .bench h2{font-size:16px;margin:0 0 10px}
 .cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.cards>div{background:#151e29;border:1px solid #2d3d51;border-radius:10px;padding:10px;display:grid;gap:5px}.cards span{font-size:13px;color:#b8c7d9}
 @media(max-width:900px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.viewerStage.view-two,.viewerStage.view-mini{grid-template-columns:1fr}}
+
+html,body{max-width:100%;overflow-x:hidden}
+button,input{font:inherit}
+button{min-height:42px;touch-action:manipulation}
+input[type=range]{max-width:100%}
+@media(max-width:700px){
+  header{padding:10px 12px}
+  h1{font-size:16px}
+  main{padding:8px;gap:8px}
+  .toolbar,.viewerWrap,.bench{padding:8px;border-radius:10px}
+  .sources,.controls,.cameraControls,.viewModes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
+  .algos{display:grid;grid-template-columns:1fr 1fr;width:100%}
+  .algos label,.controls label,.cameraControls label{min-width:0}
+  .viewerStage.view-two,.viewerStage.view-mini{grid-template-columns:1fr;padding:6px}
+  .viewerStage.view-mini .framePane{max-width:none;width:100%}
+  .transport{display:grid;grid-template-columns:auto 1fr;gap:8px}
+  .transport #time{grid-column:1/-1;text-align:center}
+  .processingBar{gap:8px;font-size:12px}
+}
+@media(max-width:430px){
+  .algos,.sources,.controls,.cameraControls,.viewModes{grid-template-columns:1fr}
+  .processingBar{display:grid;grid-template-columns:1fr 1fr}
+  .frameTag{font-size:10px}
+}
+@media(orientation:landscape) and (max-height:600px){
+  header{position:static}
+  main{padding:6px}
+  .toolbar{padding:6px}
+  .algos{margin:6px 0}
+  .viewerStage.view-split,.viewerStage.view-processed{max-height:calc(100vh - 210px)}
+  .viewerStage.view-two,.viewerStage.view-mini{grid-template-columns:1fr 1fr;padding:6px}
+  .processingBar{margin-top:6px;padding:6px 8px}
+}
+@supports(padding:max(0px)){
+  body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+  header{padding-top:max(10px,env(safe-area-inset-top))}
+  main{padding-bottom:max(8px,env(safe-area-inset-bottom))}
+}
