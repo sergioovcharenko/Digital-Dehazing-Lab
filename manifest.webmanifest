@@ -1,0 +1,11 @@
+{
+  "name":"Digital Dehazing Lab",
+  "short_name":"Dehazing Lab",
+  "start_url":"./",
+  "scope":"./",
+  "display":"standalone",
+  "orientation":"any",
+  "background_color":"#0b0f14",
+  "theme_color":"#0b0f14",
+  "description":"Offline-first local dehazing lab for photo, recorded video and live camera."
+}
