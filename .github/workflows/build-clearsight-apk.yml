@@ -1,4 +1,4 @@
-name: Build ClearSight Dehaze APK
+name: Build Digital Dehazing APK
 on:
   push:
     branches: [main]
@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: clearsight-dehaze-apk
+  group: digital-dehazing-apk
   cancel-in-progress: true
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Prepare ClearSight Android source
+      - name: Prepare Digital Dehazing Android source
         run: |
           set -euo pipefail
           git clone --depth 1 https://github.com/sergioovcharenko/Dehaze-Web.git legacy
@@ -40,13 +40,13 @@ jobs:
 
           p=Path('android-clearsight/app/src/main/AndroidManifest.xml')
           s=p.read_text()
-          s=s.replace('android:label="Digital Dehazing Adaptive MAX"','android:label="ClearSight Dehaze"')
+          s=s.replace('android:label="Digital Dehazing Adaptive MAX"','android:label="Digital Dehazing"')
           p.write_text(s)
 
           p=Path('android-clearsight/app/src/main/java/ua/dehaze/live/MainActivity.java')
           s=p.read_text()
-          s=s.replace('Digital Dehazing • Adaptive MAX','ClearSight Dehaze')
-          s=s.replace('DIGITAL DEHAZING • МЕТІ ТУМАН ADAPTIVE MAX • ОФЛАЙН','CLEARSIGHT DEHAZE • ОФЛАЙН')
+          s=s.replace('Digital Dehazing • Adaptive MAX','Digital Dehazing')
+          s=s.replace('DIGITAL DEHAZING • МЕТІ ТУМАН ADAPTIVE MAX • ОФЛАЙН','DIGITAL DEHAZING • ОФЛАЙН')
           p.write_text(s)
           PY
       - name: Configure Android SDK
@@ -70,22 +70,22 @@ jobs:
           test -s "$apk"
           "${ANDROID_HOME}/build-tools/35.0.0/aapt" dump badging "$apk" | grep '^package:' | tee package.txt
           grep "name='ua.clearsight.dehaze'" package.txt
-          cp "$apk" ClearSight-Dehaze-1.0.0.apk
-          sha256sum ClearSight-Dehaze-1.0.0.apk > ClearSight-Dehaze-1.0.0.apk.sha256
+          cp "$apk" Digital-Dehazing-1.0.0.apk
+          sha256sum Digital-Dehazing-1.0.0.apk > Digital-Dehazing-1.0.0.apk.sha256
       - uses: actions/upload-artifact@v4
         with:
-          name: ClearSight-Dehaze-APK
+          name: Digital-Dehazing-APK
           path: |
-            ClearSight-Dehaze-1.0.0.apk
-            ClearSight-Dehaze-1.0.0.apk.sha256
+            Digital-Dehazing-1.0.0.apk
+            Digital-Dehazing-1.0.0.apk.sha256
           retention-days: 90
       - name: Publish APK release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag=clearsight-dehaze-v1.0.0
+          tag=digital-dehazing-v1.0.0
           if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" --title "ClearSight Dehaze v1.0.0" --notes "Offline Android build with Camera2/OpenGL live dehazing, photo/video viewing, zoom, freeze-frame and independent package ua.clearsight.dehaze." --prerelease
+            gh release create "$tag" --title "Digital Dehazing v1.0.0" --notes "Offline Android build with Camera2/OpenGL live dehazing, photo/video viewing, zoom, freeze-frame and independent package ua.clearsight.dehaze." --prerelease
           fi
-          gh release upload "$tag" ClearSight-Dehaze-1.0.0.apk ClearSight-Dehaze-1.0.0.apk.sha256 --clobber
+          gh release upload "$tag" Digital-Dehazing-1.0.0.apk Digital-Dehazing-1.0.0.apk.sha256 --clobber
