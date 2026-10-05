@@ -3,10 +3,13 @@
   const $=id=>document.getElementById(id);
   const video=$('video'), photo=$('photo'), out=$('canvas'), ctx=out.getContext('2d',{alpha:false});
   const status=$('status'), fpsEl=$('fps'), latEl=$('latency'), label=$('algoLabel');
-  const strength=$('strength'), strengthVal=$('strengthVal'), split=$('split'), autoStrength=$('autoStrength');
+  const strength=$('strength'), strengthVal=$('strengthVal'), autoStrength=$('autoStrength');
+  const cameraZoom=$('cameraZoom'), cameraZoomVal=$('cameraZoomVal'), cameraResetZoom=$('cameraResetZoom');
+  const viewerStage=$('viewerStage'), engineStat=$('engineStat'), sourceStat=$('sourceStat'), outputStat=$('outputStat');
   const seek=$('seek'), timeEl=$('time'), play=$('play');
   const bClassic=$('bClassic'), bWebl=$('bWebl'), bEdn=$('bEdn'), bAid=$('bAid');
   let sourceMode='video', stream=null, objectUrl=null, running=false, raf=0, lastTs=0, frames=0, fpsTs=0;
+  let viewMode='split', liveTrack=null, digitalZoom=1;
   let autoS=.60, autoTs=0, currentPhoto=null;
   let aiBusy=false;
   const bench={classic:[],webl:[],edn:[],aid:[]};
@@ -22,7 +25,12 @@
   }
   strength.oninput=()=>{autoStrength.checked=false;setLabels(); if(sourceMode==='photo') renderPhoto();};
   autoStrength.onchange=()=>{setLabels(); if(sourceMode==='photo') renderPhoto();};
-  split.onchange=()=>{if(sourceMode==='photo') renderPhoto();};
+  document.querySelectorAll('[data-view]').forEach(btn=>btn.onclick=()=>{
+    viewMode=btn.dataset.view;
+    document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b===btn));
+    viewerStage.className='viewerStage view-'+viewMode;
+    if(sourceMode==='photo') renderPhoto();
+  });
   document.querySelectorAll('input[name=algo]').forEach(x=>x.onchange=()=>{setLabels();if(sourceMode==='photo')renderPhoto();});
 
   // --- Exact WebL/Adaptive family: shader derived from the existing v20 pipeline.
@@ -76,7 +84,10 @@ void main(){
     const max=1280,sc=Math.min(1,max/Math.max(w,h)),rw=Math.max(2,Math.round(w*sc)),rh=Math.max(2,Math.round(h*sc));
     if(glCanvas.width!==rw||glCanvas.height!==rh){glCanvas.width=rw;glCanvas.height=rh;gl.viewport(0,0,rw,rh);}
     gl.useProgram(prog);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,tex);
-    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,src);
+    if(sourceMode==='live'&&digitalZoom>1.001){
+      capCanvas.width=rw;capCanvas.height=rh;drawSourceZoomed(capCtx,src,0,0,rw,rh);
+      gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,capCanvas);
+    }else gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,src);
     gl.uniform2f(gl.getUniformLocation(prog,'px'),1/rw,1/rh);gl.uniform1f(gl.getUniformLocation(prog,'s'),s);
     gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
     return glCanvas;
@@ -89,9 +100,15 @@ void main(){
     if(video.videoWidth)return [video.videoWidth,video.videoHeight,video];
     return [0,0,null];
   }
+  function drawSourceZoomed(dstCtx,src,dx,dy,dw,dh){
+    if(sourceMode!=='live'||digitalZoom<=1.001){dstCtx.drawImage(src,dx,dy,dw,dh);return;}
+    const sw=src.videoWidth||src.naturalWidth||dw, sh=src.videoHeight||src.naturalHeight||dh;
+    const cw=sw/digitalZoom, ch=sh/digitalZoom, sx=(sw-cw)/2, sy=(sh-ch)/2;
+    dstCtx.drawImage(src,sx,sy,cw,ch,dx,dy,dw,dh);
+  }
   function captureForCPU(src,w,h,maxSide=640){
     const sc=Math.min(1,maxSide/Math.max(w,h)),cw=Math.max(2,Math.round(w*sc)),ch=Math.max(2,Math.round(h*sc));
-    capCanvas.width=cw;capCanvas.height=ch;capCtx.drawImage(src,0,0,cw,ch);
+    capCanvas.width=cw;capCanvas.height=ch;drawSourceZoomed(capCtx,src,0,0,cw,ch);
     return [capCtx.getImageData(0,0,cw,ch),cw,ch];
   }
   function renderClassic(src,w,h,s){
@@ -147,8 +164,8 @@ void main(){
     const max=1600,sc=Math.min(1,max/Math.max(w,h)),rw=Math.max(2,Math.round(w*sc)),rh=Math.max(2,Math.round(h*sc));
     if(out.width!==rw||out.height!==rh){out.width=rw;out.height=rh;}
     ctx.clearRect(0,0,rw,rh);
-    if(split.checked){
-      ctx.drawImage(src,0,0,rw,rh);
+    if(viewMode==='split'){
+      drawSourceZoomed(ctx,src,0,0,rw,rh);
       ctx.save();ctx.beginPath();ctx.rect(rw/2,0,rw/2,rh);ctx.clip();ctx.drawImage(processed,0,0,rw,rh);ctx.restore();
       ctx.fillStyle='#fff';ctx.fillRect(rw/2-1,0,2,rh);
     }else ctx.drawImage(processed,0,0,rw,rh);
@@ -162,6 +179,8 @@ void main(){
   async function processFrame(now=performance.now()){
     const [w,h,src]=sourceDims();if(!src||!w||!h)return;
     analyzeAuto(src,w,h,now);const a=algo(),s=strength01(),t0=performance.now();
+    if(engineStat)engineStat.textContent=a.toUpperCase();
+    if(sourceStat)sourceStat.textContent=w+'×'+h;
     try{
       if(a==='original'){compose(src,src,w,h);}
       else if(a==='webl'){const p=renderWebL(src,w,h,s);compose(src,p,w,h);recordBench('webl',performance.now()-t0);}
@@ -175,6 +194,7 @@ void main(){
         const p=renderWebL(src,w,h,s);compose(src,p,w,h);
       }
       const ms=performance.now()-t0;latEl.textContent=ms.toFixed(1)+' ms';
+      if(outputStat)outputStat.textContent=out.width+'×'+out.height;
     }catch(e){setStatus((a==='edn'?'EDN-GTM':a==='aid'?'AIDTransformer':a)+': '+e.message);if(a==='edn')bEdn.textContent='model pending';if(a==='aid')bAid.textContent='model pending';compose(src,src,w,h);}
   }
   async function loop(ts){
@@ -191,9 +211,46 @@ void main(){
   $('videoBtn').onclick=()=>{$('videoInput').click();};
   $('liveBtn').onclick=async()=>{
     activate('live');stop();if(stream)stream.getTracks().forEach(t=>t.stop());
-    try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080}},audio:false});video.srcObject=stream;video.muted=true;await video.play();setStatus('LIVE камера активна. Обробка локально.');start();}
-    catch(e){setStatus('LIVE camera error: '+e.message);}
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({video:{
+        facingMode:{ideal:'environment'},
+        width:{ideal:3840},
+        height:{ideal:2160},
+        frameRate:{ideal:30,max:60},
+        aspectRatio:{ideal:1.7777778}
+      },audio:false});
+      liveTrack=stream.getVideoTracks()[0]||null;
+      video.srcObject=stream;video.muted=true;await video.play();
+      const settings=liveTrack?.getSettings?.()||{};
+      const caps=liveTrack?.getCapabilities?.()||{};
+      digitalZoom=1;
+      if(cameraZoom){
+        if(caps.zoom){
+          cameraZoom.min=String(caps.zoom.min||1);
+          cameraZoom.max=String(caps.zoom.max||6);
+          cameraZoom.step=String(caps.zoom.step||0.1);
+          cameraZoom.value=String(settings.zoom||caps.zoom.min||1);
+        }else{
+          cameraZoom.min='1';cameraZoom.max='6';cameraZoom.step='0.1';cameraZoom.value='1';
+        }
+        cameraZoomVal.textContent=Number(cameraZoom.value).toFixed(1)+'×';
+      }
+      setStatus('LIVE камера • '+(settings.width||video.videoWidth)+'×'+(settings.height||video.videoHeight)+' • локальна обробка.');
+      start();
+    }catch(e){setStatus('LIVE camera error: '+e.message);}
   };
+  async function applyCameraZoom(value){
+    const z=Math.max(1,Number(value)||1);
+    const caps=liveTrack?.getCapabilities?.()||{};
+    if(liveTrack&&caps.zoom){
+      const min=Number(caps.zoom.min||1),max=Number(caps.zoom.max||z),clamped=Math.max(min,Math.min(max,z));
+      try{await liveTrack.applyConstraints({advanced:[{zoom:clamped}]});digitalZoom=1;}
+      catch(e){digitalZoom=z;}
+    }else digitalZoom=z;
+    if(cameraZoomVal)cameraZoomVal.textContent=z.toFixed(1)+'×';
+  }
+  if(cameraZoom)cameraZoom.oninput=()=>applyCameraZoom(cameraZoom.value);
+  if(cameraResetZoom)cameraResetZoom.onclick=()=>{cameraZoom.value='1';applyCameraZoom(1);};
   $('photoInput').onchange=e=>{
     const f=e.target.files[0];if(!f)return;activate('photo');stop();if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=URL.createObjectURL(f);
     photo.src=objectUrl;photo.onload=()=>{currentPhoto=photo;setStatus('Фото: '+f.name);renderPhoto();};
@@ -208,6 +265,10 @@ void main(){
   seek.oninput=()=>{if(sourceMode==='video'&&video.duration)video.currentTime=video.duration*Number(seek.value)/1000;};
   $('saveFrame').onclick=()=>{out.toBlob(blob=>{if(!blob)return;const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dehaze-frame.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);},'image/png');};
 
+  if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  window.addEventListener('online',()=>{$('offlineState').textContent='ONLINE';});
+  window.addEventListener('offline',()=>{$('offlineState').textContent='OFFLINE';});
+  $('offlineState').textContent=navigator.onLine?'ONLINE':'OFFLINE';
   setLabels();
-  setStatus('Lab ready. Classic DCP і WebL працюють локально; AI режими запускаються тільки з реальними ONNX weights.');
+  setStatus('Lab ready. Фото, відео і LIVE обробляються локально; AI режими потребують локальних model/runtime assets.');
 })();
