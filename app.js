@@ -32,6 +32,8 @@
     viewMode=btn.dataset.view;
     document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b===btn));
     viewerStage.className='viewerStage view-'+viewMode;
+    const [vw,vh]=sourceDims();
+    if(vw&&vh)viewerStage.style.setProperty('--media-aspect',vw+' / '+vh);
     viewerStage.dataset.orientation=window.matchMedia('(orientation: portrait)').matches?'portrait':'landscape';
     if(sourceMode==='photo') renderPhoto();
   });
@@ -204,6 +206,7 @@ void main(){
   function compose(src,processed,w,h){
     const max=1600,sc=Math.min(1,max/Math.max(w,h)),rw=Math.max(2,Math.round(w*sc)),rh=Math.max(2,Math.round(h*sc));
     if(out.width!==rw||out.height!==rh){out.width=rw;out.height=rh;}
+    out.style.aspectRatio=rw+' / '+rh;
     ctx.clearRect(0,0,rw,rh);
     if(viewMode==='split'){
       const portrait=window.matchMedia('(orientation: portrait)').matches;
@@ -294,6 +297,7 @@ void main(){
         }
         cameraZoomVal.textContent=Number(cameraZoom.value).toFixed(1)+'×';
       }
+      viewerStage.style.setProperty('--media-aspect',(settings.width||video.videoWidth)+' / '+(settings.height||video.videoHeight));
       setStatus('LIVE камера • '+(settings.width||video.videoWidth)+'×'+(settings.height||video.videoHeight)+(settings.frameRate?' • '+Math.round(settings.frameRate)+' FPS':'')+' • локальна обробка.');
       start();
     }catch(e){setStatus('LIVE camera error: '+e.message);}
@@ -315,11 +319,11 @@ void main(){
   if(cameraResetZoom)cameraResetZoom.onclick=()=>{cameraZoom.value='1';applyCameraZoom(1);};
   $('photoInput').onchange=e=>{
     const f=e.target.files[0];if(!f)return;activate('photo');stop();if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=URL.createObjectURL(f);
-    photo.src=objectUrl;photo.onload=()=>{currentPhoto=photo;setStatus('Фото: '+f.name);renderPhoto();};
+    photo.src=objectUrl;photo.onload=()=>{currentPhoto=photo;viewerStage.style.setProperty('--media-aspect',photo.naturalWidth+' / '+photo.naturalHeight);setStatus('Фото: '+f.name);renderPhoto();};
   };
   $('videoInput').onchange=async e=>{
     const f=e.target.files[0];if(!f)return;activate('video');stop();if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=URL.createObjectURL(f);
-    video.srcObject=null;video.src=objectUrl;video.loop=false;video.muted=true;await video.play().catch(()=>{});setStatus('Відео: '+f.name);start();
+    video.srcObject=null;video.src=objectUrl;video.loop=false;video.muted=true;video.onloadedmetadata=()=>viewerStage.style.setProperty('--media-aspect',video.videoWidth+' / '+video.videoHeight);await video.play().catch(()=>{});setStatus('Відео: '+f.name);start();
   };
   async function renderPhoto(){if(sourceMode!=='photo'||!currentPhoto)return;await processFrame();}
   play.onclick=async()=>{if(sourceMode==='photo')return;if(video.paused){await video.play();start();play.textContent='Ⅱ';}else{video.pause();stop();play.textContent='▶';}};
