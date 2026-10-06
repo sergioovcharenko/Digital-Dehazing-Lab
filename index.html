@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest"/>
 <link rel="icon" type="image/png" sizes="192x192" href="icons/clearsight-192.png"/>
 <link rel="apple-touch-icon" href="icons/clearsight-192.png"/>
-<link rel="stylesheet" href="styles.css?v=20261006-14"/>
+<link rel="stylesheet" href="styles.css?v=20261006-15"/>
 </head>
 <body>
 <div class="appShell">
@@ -111,9 +111,24 @@
         <label><input type="radio" name="algo" value="original"> OFF / Original</label>
         <label><input type="radio" name="algo" value="classic"> Classic DCP</label>
         <label><input type="radio" name="algo" value="webl" checked> WebL / Adaptive MAX</label>
-        <label><input type="radio" name="algo" value="edn"> EDN-GTM <small>NH-HAZE • 192×320</small></label>
-        <label class="algoUnavailable"><input type="radio" name="algo" value="aid" disabled> AIDTransformer <small>не встановлено</small></label>
-        <label><input type="radio" name="algo" value="hybrid"> Hybrid AI <small>EDN-GTM + WebL</small></label>
+        <label class="algoModelRow" data-model-row="edn">
+          <span class="algoChoice"><input type="radio" name="algo" value="edn"><span>EDN-GTM <small>NH-HAZE • 192×320</small></span></span>
+          <span class="modelLoad">
+            <span class="modelLoadTop"><span id="ednLoadText">Не завантажено • 94 МБ</span><span id="ednLoadPct">0%</span></span>
+            <span class="modelBar"><span id="ednLoadBar"></span></span>
+          </span>
+        </label>
+        <label class="algoUnavailable algoModelRow" data-model-row="aid">
+          <span class="algoChoice"><input type="radio" name="algo" value="aid" disabled><span>AIDTransformer <small>не встановлено</small></span></span>
+          <span class="modelLoad modelLoadUnavailable"><span class="modelLoadTop"><span>Браузерна модель ще не готова</span></span></span>
+        </label>
+        <label class="algoModelRow" data-model-row="hybrid">
+          <span class="algoChoice"><input type="radio" name="algo" value="hybrid"><span>Hybrid AI <small>EDN-GTM + WebL</small></span></span>
+          <span class="modelLoad">
+            <span class="modelLoadTop"><span id="hybridLoadText">Очікує EDN-GTM • 94 МБ</span><span id="hybridLoadPct">0%</span></span>
+            <span class="modelBar"><span id="hybridLoadBar"></span></span>
+          </span>
+        </label>
       </div>
     </section>
 
@@ -148,6 +163,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
 <script src="classic-dcp.js?v=20261006-14"></script>
-<script src="app.js?v=20261006-14"></script>
+<script src="app.js?v=20261006-15"></script>
 </body>
 </html>
