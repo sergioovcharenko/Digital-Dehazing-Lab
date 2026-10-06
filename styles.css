@@ -226,3 +226,55 @@ button{touch-action:manipulation}
 .viewerStage.view-mini.split-horizontal .processedPane{grid-column:1;grid-row:2}
 .viewerStage.view-two .frameTag,
 .viewerStage.view-mini .frameTag{display:block!important;z-index:5}
+
+/* v11 photo controls + compact 2-frame layout */
+.viewerPage.source-photo .freeze{display:none!important}
+.viewerPage.source-photo .transport{display:none!important}
+
+.viewerStage.view-two.split-horizontal{
+  display:flex!important;
+  flex-direction:column;
+  justify-content:center;
+  gap:8px;
+  padding:8px;
+}
+.viewerStage.view-two.split-horizontal .framePane{
+  position:relative!important;
+  width:100%!important;
+  height:auto!important;
+  aspect-ratio:var(--media-aspect);
+  flex:0 0 auto;
+  background:#05070a;
+}
+.viewerStage.view-two.split-horizontal .framePane video,
+.viewerStage.view-two.split-horizontal .framePane img,
+.viewerStage.view-two.split-horizontal .framePane canvas{
+  width:100%!important;
+  height:100%!important;
+  object-fit:contain!important;
+}
+
+.viewerStage.view-mini.split-horizontal{
+  display:flex!important;
+  flex-direction:column;
+  justify-content:flex-end;
+  gap:8px;
+  padding:10px;
+}
+.viewerStage.view-mini.split-horizontal .framePane{
+  position:relative!important;
+  width:100%!important;
+  height:auto!important;
+  aspect-ratio:var(--media-aspect);
+  max-height:36vh;
+  flex:0 0 auto;
+}
+
+.viewerStage.view-two.split-vertical{
+  gap:4px;
+  padding:4px;
+}
+.viewerStage.view-two.split-vertical .framePane{
+  width:100%!important;
+  height:100%!important;
+}
