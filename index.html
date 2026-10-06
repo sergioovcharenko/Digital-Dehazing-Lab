@@ -8,16 +8,16 @@
 <link rel="manifest" href="manifest.webmanifest"/>
 <link rel="icon" type="image/png" sizes="192x192" href="icons/clearsight-192.png"/>
 <link rel="apple-touch-icon" href="icons/clearsight-192.png"/>
-<link rel="stylesheet" href="styles.css?v=20261005-6"/>
+<link rel="stylesheet" href="styles.css?v=20261006-7"/>
 </head>
 <body>
 <div class="appShell">
   <header class="topbar">
-    <div class="brand">Digital Dehazing</div>
+    <div class="brand"><img class="brandIcon" src="icons/clearsight-192.png" alt=""><div><strong>Digital Dehazing</strong><small><span class="liveDot"></span><span id="headerFps">— FPS</span></small></div></div>
     <div class="sourceSwitcher">
-      <button id="photoBtn">Фото</button>
-      <button id="videoBtn">Відео</button>
-      <button id="liveBtn" class="active">LIVE</button>
+      <button id="photoBtn"><span>▧</span>Фото</button>
+      <button id="videoBtn"><span>▶</span>Відео</button>
+      <button id="liveBtn" class="active"><span>◉</span>Камера</button>
     </div>
     <span id="offlineState" class="netState">LOCAL</span>
   </header>
@@ -59,8 +59,8 @@
       </div>
     </div>
 
-    <button id="freezeFrame" class="floatingAction freeze" type="button">❚❚</button>
-    <button id="saveFrame" class="floatingAction shot" type="button">◉</button>
+    <button id="freezeFrame" class="floatingAction freeze" type="button" aria-label="Стоп-кадр">Ⅱ</button>
+    <button id="saveFrame" class="floatingAction shot" type="button"><span>▣</span><span class="actionText">Знімок</span></button>
     <button id="settingsBtn" class="floatingAction gear" type="button" aria-label="Налаштування">⚙</button>
   </main>
 
@@ -146,7 +146,7 @@
   </aside>
 </div>
 
-<script src="classic-dcp.js?v=20261005-6"></script>
-<script src="app.js?v=20261005-6"></script>
+<script src="classic-dcp.js?v=20261006-7"></script>
+<script src="app.js?v=20261006-7"></script>
 </body>
 </html>
