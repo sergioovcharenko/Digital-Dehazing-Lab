@@ -1,0 +1,40 @@
+name: EDN-GTM Fetch Test
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/edn-gtm-fetch.yml"
+  workflow_dispatch:
+
+jobs:
+  fetch-model:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download NH-HAZE package
+        run: |
+          set -euxo pipefail
+          curl -L --retry 3 --fail             "https://s3.ap-northeast-2.wasabisys.com/pinto-model-zoo/277_EDN-GTM/nhhaze.tar.gz"             -o /tmp/nhhaze.tar.gz
+          ls -lh /tmp/nhhaze.tar.gz
+          tar -tzf /tmp/nhhaze.tar.gz | tee /tmp/contents.txt
+
+      - name: Extract 192x320 web candidate
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/edn
+          tar -xzf /tmp/nhhaze.tar.gz -C /tmp/edn
+          find /tmp/edn -maxdepth 3 -type f -printf '%p %k KB\n' | sort | tee /tmp/files.txt
+          mkdir -p edn-artifact
+          cand="$(find /tmp/edn -type f \( -path '*nhhaze_generator_192x320*/model_float32.onnx' -o -path '*nhhaze_generator_192x320*/model_float16.tflite' -o -path '*nhhaze_generator_192x320*/model.json' \) | head -20)"
+          printf '%s\n' "$cand"
+          cp /tmp/contents.txt edn-artifact/
+          cp /tmp/files.txt edn-artifact/
+          while IFS= read -r f; do [ -n "$f" ] && cp "$f" edn-artifact/; done <<< "$cand"
+          ls -lh edn-artifact
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: edn-nhhaze-192x320
+          path: edn-artifact
+          retention-days: 7
