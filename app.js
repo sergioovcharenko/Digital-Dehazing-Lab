@@ -35,13 +35,13 @@
     label.textContent=advancedOverride?(map[algo()]||algo().toUpperCase()):(autoStrength.checked?'AUTO':('MANUAL '+manualLevelName()));
     strengthVal.textContent=Math.round(strength01()*100)+'%';
   }
-  strength.oninput=()=>{setLabels(); if(sourceMode==='photo') renderPhoto();};
+  strength.oninput=()=>{setLabels(); processFrame(performance.now());};
   autoStrength.onchange=()=>{setLabels(); if(sourceMode==='photo') renderPhoto();};
-  document.querySelectorAll('[data-split]').forEach(btn=>btn.onclick=()=>{
+  document.querySelectorAll('[data-split]').forEach(btn=>btn.onclick=async()=>{
     splitDirection=btn.dataset.split;
     document.querySelectorAll('[data-split]').forEach(b=>b.classList.toggle('active',b===btn));
     applyViewerLayout();
-    if(sourceMode==='photo')renderPhoto();
+    await processFrame(performance.now());
   });
   document.querySelectorAll('[data-view]').forEach(btn=>btn.onclick=()=>{
     viewMode=btn.dataset.view;
@@ -135,6 +135,10 @@ void main(){
   }
   function applyViewerLayout(){
     viewerStage.className='viewerStage view-'+viewMode+(resolvedSplitHorizontal()?' split-horizontal':' split-vertical');
+    const op=document.querySelector('.originalPane .frameTag');
+    const pp=document.querySelector('.processedPane .frameTag');
+    if(op)op.textContent='ОРИГІНАЛ';
+    if(pp)pp.textContent=advancedOverride?engineName():'ОБРОБЛЕНО';
     const [vw,vh]=sourceDims();
     if(vw&&vh)viewerStage.style.setProperty('--media-aspect',vw+' / '+vh);
     viewerStage.dataset.orientation=window.matchMedia('(orientation: portrait)').matches?'portrait':'landscape';
@@ -233,6 +237,26 @@ void main(){
     }
   }
 
+  function drawSplitBadges(horizontal,rw,rh){
+    ctx.save();
+    ctx.font=Math.max(18,Math.round(Math.min(rw,rh)*0.028))+'px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif';
+    ctx.textBaseline='top';
+    const pad=12, boxH=36;
+    const drawBadge=(txt,x,y)=>{
+      const tw=ctx.measureText(txt).width;
+      ctx.fillStyle='rgba(20,24,30,.62)';
+      ctx.fillRect(x,y,tw+20,boxH);
+      ctx.fillStyle='#fff';
+      ctx.fillText(txt,x+10,y+7);
+    };
+    drawBadge('ОРИГІНАЛ',pad,pad);
+    if(horizontal) drawBadge('ОБРОБЛЕНО',pad,rh/2+pad);
+    else {
+      const txt='ОБРОБЛЕНО',tw=ctx.measureText(txt).width;
+      drawBadge(txt,rw/2+pad,pad);
+    }
+    ctx.restore();
+  }
   function compose(src,processed,w,h){
     const max=1600,sc=Math.min(1,max/Math.max(w,h)),rw=Math.max(2,Math.round(w*sc)),rh=Math.max(2,Math.round(h*sc));
     if(out.width!==rw||out.height!==rh){out.width=rw;out.height=rh;}
@@ -249,6 +273,7 @@ void main(){
       ctx.clip();
       ctx.drawImage(processed,0,0,rw,rh);
       ctx.restore();
+      drawSplitBadges(horizontal,rw,rh);
     }else ctx.drawImage(processed,0,0,rw,rh);
   }
   function recordBench(kind,ms){
