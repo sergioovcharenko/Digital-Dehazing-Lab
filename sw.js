@@ -1,4 +1,4 @@
-const CACHE='digital-dehazing-lab-v9';
+const CACHE='digital-dehazing-lab-v10';
 const CORE=['./','./index.html','./styles.css','./app.js','./classic-dcp.js','./manifest.webmanifest'];
 
 self.addEventListener('install',event=>{
