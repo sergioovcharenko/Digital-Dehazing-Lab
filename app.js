@@ -71,7 +71,7 @@
       if(!sessions.edn)setStatus('Модель ще не завантажена. Натисніть «Завантажити модель».');
       else setStatus((x.value==='edn'?'EDN-GTM':'Hybrid AI')+' готовий. Натисніть «Запустити AI».');
     }else{
-      if(useEdnLite&&sourceMode==='live'&&aiSafeCameraActive){
+      if(useEdnLite&&sourceMode==='live'&&(!stream||aiSafeCameraActive)){
         startLiveCamera();
       }else if(sourceMode==='photo'){
         renderPhoto();
