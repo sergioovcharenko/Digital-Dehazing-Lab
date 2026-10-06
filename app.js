@@ -16,9 +16,11 @@
   let sourceMode='video', stream=null, objectUrl=null, running=false, raf=0, lastTs=0, frames=0, fpsTs=0;
   let viewMode='split', splitDirection='auto', liveTrack=null, digitalZoom=1, frozen=false;
   let autoS=.60, autoTs=0, currentPhoto=null, sceneMode='DAY', autoContrast=1, autoDenoise=0;
-  let aiBusy=false, advancedOverride=false, tfScriptPromise=null, tfWasmPromise=null, lastAiAttempt=0, aiRunEnabled=false, aiStoppedLiveForLoad=false, aiSafeCameraActive=false;
+  let aiBusy=false, advancedOverride=false, tfScriptPromise=null, tfliteScriptPromise=null, lastAiAttempt=0, aiRunEnabled=false, aiStoppedLiveForLoad=false, aiSafeCameraActive=false, ednRuntime='';
   const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
-  const AI_INTERVAL_MS=isIOS?1000:160;
+  const isAndroid=/Android/i.test(navigator.userAgent);
+  const useEdnLite=isIOS||isAndroid;
+  const AI_INTERVAL_MS=isIOS?1000:(isAndroid?500:160);
   const bench={classic:[],webl:[],edn:[],aid:[]};
 
   function algo(){return document.querySelector('input[name=algo]:checked')?.value||'webl';}
@@ -69,7 +71,7 @@
       if(!sessions.edn)setStatus('Модель ще не завантажена. Натисніть «Завантажити модель».');
       else setStatus((x.value==='edn'?'EDN-GTM':'Hybrid AI')+' готовий. Натисніть «Запустити AI».');
     }else{
-      if(isIOS&&sourceMode==='live'&&aiSafeCameraActive){
+      if(useEdnLite&&sourceMode==='live'&&aiSafeCameraActive){
         startLiveCamera();
       }else if(sourceMode==='photo'){
         renderPhoto();
@@ -226,13 +228,17 @@ void main(){
 
   // --- AI model hooks. Real model inference only; no fake filter fallback.
   const modelCfg={
-    edn:{url:'models/edn-gtm/nhhaze-192x320/model.json',size:[192,320],runtime:'tfjs'},
+    edn:{url:'models/edn-gtm/nhhaze-192x320/model.json',size:[192,320],bytes:98760542,runtime:'tfjs'},
+    ednLite:{url:'models/edn-gtm/nhhaze-192x320-lite/model.tflite',size:[192,320],bytes:49668672,runtime:'tflite'},
     aid:{url:'models/aid_transformer_256.onnx',size:[256,256],runtime:'onnx'}
   };
   const sessions={};
   const modelLoads={
     edn:{state:'idle',progress:0,promise:null,error:null}
   };
+
+  function currentEdnCfg(){return useEdnLite?modelCfg.ednLite:modelCfg.edn;}
+  function currentEdnSizeMB(){return Math.round(currentEdnCfg().bytes/1024/1024);}
 
   function setModelRowState(rowKey,state){
     const row=document.querySelector('[data-model-row="'+rowKey+'"]');
@@ -244,16 +250,18 @@ void main(){
 
   function setEdnModelUI(state,progress=0,error=''){
     const pct=Math.max(0,Math.min(100,Math.round(progress*100)));
-    const text=state==='ready'?'Готово • модель у пам\'яті':
-      state==='initializing'?'Ініціалізація моделі…':
-      state==='loading'?('Завантаження моделі… '+pct+'%'):
+    const size=currentEdnSizeMB();
+    const runtimeLabel=useEdnLite?'TFLite Mobile':'TFJS Desktop';
+    const text=state==='ready'?('Готово • '+runtimeLabel):
+      state==='initializing'?('Ініціалізація '+runtimeLabel+'…'):
+      state==='loading'?('Завантаження '+runtimeLabel+'… '+pct+'%'):
       state==='error'?('Помилка: '+error):
-      'Не завантажено • 94 МБ';
-    const hybridText=state==='ready'?'Готово • EDN-GTM завантажено':
-      state==='initializing'?'Ініціалізація EDN-GTM…':
+      ('Не завантажено • '+size+' МБ • '+runtimeLabel);
+    const hybridText=state==='ready'?('Готово • '+runtimeLabel):
+      state==='initializing'?('Ініціалізація EDN-GTM…'):
       state==='loading'?('Завантаження EDN-GTM… '+pct+'%'):
       state==='error'?'EDN-GTM: помилка завантаження':
-      'Очікує EDN-GTM • 94 МБ';
+      ('Очікує EDN-GTM • '+size+' МБ');
 
     const ednText=document.getElementById('ednLoadText');
     const ednPct=document.getElementById('ednLoadPct');
@@ -305,25 +313,62 @@ void main(){
     return tfScriptPromise;
   }
 
-  function ensureTfWasm(){
-    if(window.tf?.findBackend?.('wasm'))return Promise.resolve();
-    if(tfWasmPromise)return tfWasmPromise;
-    tfWasmPromise=new Promise((resolve,reject)=>{
+  async function ensureTfliteRuntime(){
+    await ensureTfJs();
+    // Keep input/output tensors off WebGL on mobile. The model itself runs in TFLite WASM/XNNPACK.
+    try{await tf.setBackend('cpu');}catch(_){}
+    await tf.ready();
+
+    if(window.tflite)return window.tflite;
+    if(tfliteScriptPromise)return tfliteScriptPromise;
+    tfliteScriptPromise=new Promise((resolve,reject)=>{
       const script=document.createElement('script');
-      script.src='https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@4.22.0/dist/tf-backend-wasm.js';
+      script.src='https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/dist/tf-tflite.min.js';
       script.async=true;
       script.crossOrigin='anonymous';
       script.onload=()=>{
         try{
-          if(!window.tf?.wasm)throw new Error('WASM backend не ініціалізувався');
-          tf.wasm.setWasmPaths('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@4.22.0/dist/');
-          resolve();
+          if(!window.tflite)throw new Error('TFLite runtime не ініціалізувався');
+          tflite.setWasmPath('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/dist/');
+          resolve(window.tflite);
         }catch(e){reject(e);}
       };
-      script.onerror=()=>reject(new Error('Не вдалося завантажити TensorFlow WASM backend'));
+      script.onerror=()=>reject(new Error('Не вдалося завантажити TFLite runtime'));
       document.head.appendChild(script);
-    }).catch(err=>{tfWasmPromise=null;throw err;});
-    return tfWasmPromise;
+    }).catch(err=>{tfliteScriptPromise=null;throw err;});
+    return tfliteScriptPromise;
+  }
+
+  async function fetchBinaryWithProgress(url,expectedBytes,onProgress){
+    const res=await fetch(url,{cache:'no-store'});
+    if(!res.ok)throw new Error('Lite-модель недоступна: HTTP '+res.status);
+    const headerSize=Number(res.headers.get('content-length'))||0;
+    let capacity=headerSize||expectedBytes||0;
+    if(!res.body||!capacity){
+      const ab=await res.arrayBuffer();
+      onProgress?.(1);
+      return ab;
+    }
+
+    let out=new Uint8Array(capacity);
+    let offset=0;
+    const reader=res.body.getReader();
+    while(true){
+      const {done,value}=await reader.read();
+      if(done)break;
+      if(offset+value.length>out.length){
+        const grown=new Uint8Array(Math.max(offset+value.length,Math.ceil(out.length*1.35)));
+        grown.set(out);
+        out=grown;
+      }
+      out.set(value,offset);
+      offset+=value.length;
+      onProgress?.(Math.min(1,offset/(headerSize||expectedBytes||offset)));
+      // Give Safari a chance to paint progress and release temporary fetch work.
+      if(useEdnLite)await new Promise(resolve=>setTimeout(resolve,0));
+    }
+    if(offset===out.length)return out.buffer;
+    return out.buffer.slice(0,offset);
   }
 
   async function getSession(kind){
@@ -331,57 +376,72 @@ void main(){
 
     if(kind==='edn'){
       if(modelLoads.edn.promise)return modelLoads.edn.promise;
+      const cfg=currentEdnCfg();
 
       modelLoads.edn.state='loading';
       modelLoads.edn.progress=0;
       modelLoads.edn.error=null;
       setEdnModelUI('loading',0);
-      setStatus('EDN-GTM: підготовка TensorFlow.js…');
 
       modelLoads.edn.promise=(async()=>{
         try{
-          await ensureTfJs();
-          if(isIOS){
-            setStatus('EDN-GTM: iPhone SAFE • підготовка WASM…');
-            await ensureTfWasm();
-            const ok=await tf.setBackend('wasm');
-            if(!ok)throw new Error('WASM backend недоступний');
-          }else{
-            try{await tf.setBackend('webgl');}catch(_){}
-          }
-          await tf.ready();
-          setStatus('EDN-GTM: завантаження моделі • 94 МБ • '+tf.getBackend().toUpperCase());
+          let model=null;
 
-          const model=await tf.loadGraphModel(modelCfg.edn.url,{
-            onProgress:(fraction)=>{
-              const p=Number.isFinite(fraction)?fraction:0;
+          if(useEdnLite){
+            setStatus('EDN-GTM Mobile Lite: підготовка TFLite/WASM…');
+            await ensureTfliteRuntime();
+
+            setStatus('EDN-GTM Mobile Lite: завантаження '+currentEdnSizeMB()+' МБ…');
+            let bytes=await fetchBinaryWithProgress(cfg.url,cfg.bytes,(p)=>{
               modelLoads.edn.progress=p;
               setEdnModelUI('loading',p);
               if(algo()==='edn'||algo()==='hybrid'){
-                setStatus('EDN-GTM: завантаження '+Math.round(p*100)+'% • 94 МБ');
+                setStatus('EDN-GTM Mobile Lite: '+Math.round(p*100)+'% • '+currentEdnSizeMB()+' МБ');
                 if(headerFps)headerFps.textContent='MODEL '+Math.round(p*100)+'%';
               }
-            }
-          });
+            });
 
-          modelLoads.edn.state='initializing';
-          setEdnModelUI('initializing',1);
-          setStatus('EDN-GTM: модель завантажена • підготовка до першого кадру…');
-          await new Promise(resolve=>setTimeout(resolve,80));
+            modelLoads.edn.state='initializing';
+            setEdnModelUI('initializing',1);
+            setStatus('EDN-GTM Mobile Lite: 100% • ініціалізація TFLite…');
+            await new Promise(resolve=>setTimeout(resolve,100));
+
+            model=await tflite.loadTFLiteModel(bytes,{numThreads:1});
+            bytes=null;
+            ednRuntime='tflite';
+          }else{
+            await ensureTfJs();
+            try{await tf.setBackend('webgl');}catch(_){}
+            await tf.ready();
+            setStatus('EDN-GTM Desktop: завантаження '+currentEdnSizeMB()+' МБ • '+tf.getBackend().toUpperCase());
+
+            model=await tf.loadGraphModel(cfg.url,{
+              onProgress:(fraction)=>{
+                const p=Number.isFinite(fraction)?fraction:0;
+                modelLoads.edn.progress=p;
+                setEdnModelUI('loading',p);
+                if(algo()==='edn'||algo()==='hybrid'){
+                  setStatus('EDN-GTM Desktop: '+Math.round(p*100)+'% • '+currentEdnSizeMB()+' МБ');
+                  if(headerFps)headerFps.textContent='MODEL '+Math.round(p*100)+'%';
+                }
+              }
+            });
+            ednRuntime='tfjs';
+          }
 
           sessions.edn=model;
           modelLoads.edn.state='ready';
           modelLoads.edn.progress=1;
           setEdnModelUI('ready',1);
           aiRunEnabled=false;
-          setStatus('EDN-GTM готовий • '+tf.getBackend().toUpperCase()+' • натисніть «Запустити AI»');
+          setStatus('EDN-GTM готовий • '+(ednRuntime==='tflite'?'TFLite Mobile':'TFJS Desktop')+' • натисніть «Запустити AI»');
           updateAiRunButtons();
           return model;
         }catch(e){
           const msg=e?.message||String(e);
           modelLoads.edn.state='error';
           modelLoads.edn.error=msg;
-          setEdnModelUI('error',modelLoads.edn.progress,msg.length>54?msg.slice(0,54)+'…':msg);
+          setEdnModelUI('error',modelLoads.edn.progress,msg.length>58?msg.slice(0,58)+'…':msg);
           setStatus('EDN-GTM: '+msg);
           throw e;
         }finally{
@@ -405,14 +465,7 @@ void main(){
       return sessions.edn;
     }
 
-    if(isIOS){
-      modelLoads.edn.state='idle';
-      setEdnModelUI('idle',0);
-      setStatus('iPhone: важку TFJS EDN-GTM вимкнено, щоб Safari не перезапускав сторінку. Готується Lite TFLite.');
-      return null;
-    }
-
-    if(isIOS&&sourceMode==='live'){
+    if(useEdnLite&&sourceMode==='live'){
       aiStoppedLiveForLoad=true;
       stop();
       try{video.pause();}catch(_){}
@@ -421,15 +474,15 @@ void main(){
         stream=null;
       }
       liveTrack=null;
+      aiSafeCameraActive=false;
       video.srcObject=null;
 
-      // Release camera/WebGL staging buffers before the 94 MB model is expanded in memory.
       try{capCanvas.width=2;capCanvas.height=2;}catch(_){}
       try{procCanvas.width=2;procCanvas.height=2;}catch(_){}
       try{glCanvas.width=2;glCanvas.height=2;}catch(_){}
 
-      setStatus('iPhone SAFE: камера зупинена • звільнення пам’яті перед EDN-GTM…');
-      await new Promise(resolve=>setTimeout(resolve,350));
+      setStatus('Mobile SAFE: камера зупинена • звільнення пам’яті перед EDN-GTM Lite…');
+      await new Promise(resolve=>setTimeout(resolve,300));
     }
 
     return getSession('edn');
@@ -457,6 +510,7 @@ void main(){
       await loadEdnModel().catch(()=>{});
       return;
     }
+
     const radio=document.querySelector('input[name=algo][value="'+kind+'"]');
     if(radio&&!radio.checked){
       radio.checked=true;
@@ -465,25 +519,26 @@ void main(){
       setLabels();
       if(engineStat)engineStat.textContent=engineName();
     }
+
     aiRunEnabled=!aiRunEnabled;
     lastAiAttempt=0;
     updateAiRunButtons();
 
-    if(aiRunEnabled&&isIOS&&sourceMode==='live'&&!stream){
-      setStatus((kind==='edn'?'EDN-GTM':'Hybrid AI')+' • запуск AI SAFE камери…');
+    if(aiRunEnabled&&useEdnLite&&sourceMode==='live'&&!stream){
+      setStatus((kind==='edn'?'EDN-GTM':'Hybrid AI')+' • запуск Mobile AI SAFE камери…');
       await startLiveCamera();
       aiStoppedLiveForLoad=false;
       return;
     }
 
-    if(!aiRunEnabled&&isIOS&&sourceMode==='live'&&aiSafeCameraActive){
+    if(!aiRunEnabled&&useEdnLite&&sourceMode==='live'&&aiSafeCameraActive){
       setStatus((kind==='edn'?'EDN-GTM':'Hybrid AI')+' зупинено • відновлення штатної камери…');
       await startLiveCamera();
       return;
     }
 
     setStatus(aiRunEnabled
-      ?((kind==='edn'?'EDN-GTM':'Hybrid AI')+' запущено • '+(window.tf?tf.getBackend().toUpperCase():'AI'))
+      ?((kind==='edn'?'EDN-GTM':'Hybrid AI')+' запущено • '+(ednRuntime==='tflite'?'TFLite':'TFJS'))
       :((kind==='edn'?'EDN-GTM':'Hybrid AI')+' зупинено'));
     if(sourceMode==='photo')renderPhoto();
   }
@@ -491,17 +546,7 @@ void main(){
   if(ednLoadBtn)ednLoadBtn.onclick=e=>modelButtonAction('edn',e);
   if(hybridLoadBtn)hybridLoadBtn.onclick=e=>modelButtonAction('hybrid',e);
 
-  setEdnModelUI(sessions.edn?'ready':'idle',sessions.edn?1:0);
-  if(isIOS){
-    const t=document.getElementById('ednLoadText');
-    const h=document.getElementById('hybridLoadText');
-    const b=document.getElementById('ednLoadBtn');
-    const hb=document.getElementById('hybridLoadBtn');
-    if(t)t.textContent='iPhone SAFE • очікує Lite TFLite';
-    if(h)h.textContent='iPhone SAFE • очікує Lite TFLite';
-    if(b)b.textContent='Lite модель готується';
-    if(hb)hb.textContent='Lite модель готується';
-  }
+  setEdnModelUI('idle',0);
   updateAiRunButtons();
 
   function minFilter2D(src,W,H,rad){
@@ -609,8 +654,11 @@ void main(){
       const x=tf.tensor4d(input,[1,H,W,4],'float32');
       let result=null,tensor=null;
       try{
-        result=await sess.executeAsync(x);
-        tensor=Array.isArray(result)?result[0]:result;
+        result=ednRuntime==='tflite' ? sess.predict(x) : await sess.executeAsync(x);
+        if(Array.isArray(result))tensor=result[0];
+        else if(result&&typeof result==='object'&&!(result instanceof tf.Tensor))tensor=Object.values(result)[0];
+        else tensor=result;
+        if(!tensor)throw new Error('EDN-GTM не повернув вихідний тензор');
         const o=await tensor.data();
         const outIm=c.createImageData(W,H);
         for(let p=0;p<H*W;p++){
@@ -627,7 +675,9 @@ void main(){
         return rotated;
       }finally{
         x.dispose();
-        if(Array.isArray(result))result.forEach(t=>t?.dispose?.()); else tensor?.dispose?.();
+        if(Array.isArray(result))result.forEach(t=>t?.dispose?.());
+        else if(result&&typeof result==='object'&&!(result instanceof tf.Tensor))Object.values(result).forEach(t=>t?.dispose?.());
+        else tensor?.dispose?.();
       }
     }else{
       const input=new Float32Array(3*H*W);
@@ -792,7 +842,7 @@ void main(){
   $('photoBtn').onclick=()=>{$('photoInput').click();};
   $('videoBtn').onclick=()=>{$('videoInput').click();};
   function liveConstraints(){
-    const aiSafe=isIOS&&!!sessions.edn&&aiRunEnabled&&(algo()==='edn'||algo()==='hybrid');
+    const aiSafe=useEdnLite&&!!sessions.edn&&aiRunEnabled&&(algo()==='edn'||algo()==='hybrid');
     if(aiSafe){
       return {video:{
         facingMode:{ideal:'environment'},
@@ -831,7 +881,7 @@ void main(){
         cameraZoomVal.textContent=Number(cameraZoom.value).toFixed(1)+'×';
       }
       viewerStage.style.setProperty('--media-aspect',(settings.width||video.videoWidth)+' / '+(settings.height||video.videoHeight));
-      const aiSafe=isIOS&&!!sessions.edn&&aiRunEnabled&&(algo()==='edn'||algo()==='hybrid');
+      const aiSafe=useEdnLite&&!!sessions.edn&&aiRunEnabled&&(algo()==='edn'||algo()==='hybrid');
       aiSafeCameraActive=aiSafe;
       setStatus((aiSafe?'AI SAFE камера':'LIVE камера')+' • '+(settings.width||video.videoWidth)+'×'+(settings.height||video.videoHeight)+(settings.frameRate?' • '+Math.round(settings.frameRate)+' FPS':'')+(aiSafe?' • EDN input 320×192':' • локальна обробка.'));
       start();
