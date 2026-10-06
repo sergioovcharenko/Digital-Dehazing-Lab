@@ -16,7 +16,7 @@
   let sourceMode='video', stream=null, objectUrl=null, running=false, raf=0, lastTs=0, frames=0, fpsTs=0;
   let viewMode='split', splitDirection='auto', liveTrack=null, digitalZoom=1, frozen=false;
   let autoS=.60, autoTs=0, currentPhoto=null, sceneMode='DAY', autoContrast=1, autoDenoise=0;
-  let aiBusy=false, advancedOverride=false, tfScriptPromise=null, tfWasmPromise=null, lastAiAttempt=0, aiRunEnabled=false, aiStoppedLiveForLoad=false;
+  let aiBusy=false, advancedOverride=false, tfScriptPromise=null, tfWasmPromise=null, lastAiAttempt=0, aiRunEnabled=false, aiStoppedLiveForLoad=false, aiSafeCameraActive=false;
   const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
   const AI_INTERVAL_MS=isIOS?1000:160;
   const bench={classic:[],webl:[],edn:[],aid:[]};
@@ -68,8 +68,12 @@
     if(x.value==='edn'||x.value==='hybrid'){
       if(!sessions.edn)setStatus('Модель ще не завантажена. Натисніть «Завантажити модель».');
       else setStatus((x.value==='edn'?'EDN-GTM':'Hybrid AI')+' готовий. Натисніть «Запустити AI».');
-    }else if(sourceMode==='photo'){
-      renderPhoto();
+    }else{
+      if(isIOS&&sourceMode==='live'&&aiSafeCameraActive){
+        startLiveCamera();
+      }else if(sourceMode==='photo'){
+        renderPhoto();
+      }
     }
   });
 
@@ -472,6 +476,12 @@ void main(){
       return;
     }
 
+    if(!aiRunEnabled&&isIOS&&sourceMode==='live'&&aiSafeCameraActive){
+      setStatus((kind==='edn'?'EDN-GTM':'Hybrid AI')+' зупинено • відновлення штатної камери…');
+      await startLiveCamera();
+      return;
+    }
+
     setStatus(aiRunEnabled
       ?((kind==='edn'?'EDN-GTM':'Hybrid AI')+' запущено • '+(window.tf?tf.getBackend().toUpperCase():'AI'))
       :((kind==='edn'?'EDN-GTM':'Hybrid AI')+' зупинено'));
@@ -822,6 +832,7 @@ void main(){
       }
       viewerStage.style.setProperty('--media-aspect',(settings.width||video.videoWidth)+' / '+(settings.height||video.videoHeight));
       const aiSafe=isIOS&&!!sessions.edn&&aiRunEnabled&&(algo()==='edn'||algo()==='hybrid');
+      aiSafeCameraActive=aiSafe;
       setStatus((aiSafe?'AI SAFE камера':'LIVE камера')+' • '+(settings.width||video.videoWidth)+'×'+(settings.height||video.videoHeight)+(settings.frameRate?' • '+Math.round(settings.frameRate)+' FPS':'')+(aiSafe?' • EDN input 320×192':' • локальна обробка.'));
       start();
     }catch(e){setStatus('LIVE camera error: '+e.message);}
