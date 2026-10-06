@@ -75,5 +75,6 @@ jobs:
             echo "Lightweight model already installed"
           else
             git commit -m "Install lightweight EDN-GTM NH-HAZE TFLite model"
+            git pull --rebase origin main
             git push origin HEAD:main
           fi
