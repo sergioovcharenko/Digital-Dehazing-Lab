@@ -16,7 +16,7 @@
   let sourceMode='video', stream=null, objectUrl=null, running=false, raf=0, lastTs=0, frames=0, fpsTs=0;
   let viewMode='split', splitDirection='auto', liveTrack=null, digitalZoom=1, frozen=false;
   let autoS=.60, autoTs=0, currentPhoto=null, sceneMode='DAY', autoContrast=1, autoDenoise=0;
-  let aiBusy=false, advancedOverride=false, tfScriptPromise=null, tfWasmPromise=null, lastAiAttempt=0, aiRunEnabled=false;
+  let aiBusy=false, advancedOverride=false, tfScriptPromise=null, tfWasmPromise=null, lastAiAttempt=0, aiRunEnabled=false, aiStoppedLiveForLoad=false;
   const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
   const AI_INTERVAL_MS=isIOS?1000:160;
   const bench={classic:[],webl:[],edn:[],aid:[]};
@@ -395,11 +395,32 @@ void main(){
     }catch(e){throw Error('model asset not installed: '+modelCfg[kind].url);}
   }
 
-  function loadEdnModel(){
+  async function loadEdnModel(){
     if(sessions.edn){
       setEdnModelUI('ready',1);
-      return Promise.resolve(sessions.edn);
+      return sessions.edn;
     }
+
+    if(isIOS&&sourceMode==='live'){
+      aiStoppedLiveForLoad=true;
+      stop();
+      try{video.pause();}catch(_){}
+      if(stream){
+        stream.getTracks().forEach(t=>t.stop());
+        stream=null;
+      }
+      liveTrack=null;
+      video.srcObject=null;
+
+      // Release camera/WebGL staging buffers before the 94 MB model is expanded in memory.
+      try{capCanvas.width=2;capCanvas.height=2;}catch(_){}
+      try{procCanvas.width=2;procCanvas.height=2;}catch(_){}
+      try{glCanvas.width=2;glCanvas.height=2;}catch(_){}
+
+      setStatus('iPhone SAFE: камера зупинена • звільнення пам’яті перед EDN-GTM…');
+      await new Promise(resolve=>setTimeout(resolve,350));
+    }
+
     return getSession('edn');
   }
 
@@ -436,6 +457,14 @@ void main(){
     aiRunEnabled=!aiRunEnabled;
     lastAiAttempt=0;
     updateAiRunButtons();
+
+    if(aiRunEnabled&&isIOS&&sourceMode==='live'&&!stream){
+      setStatus((kind==='edn'?'EDN-GTM':'Hybrid AI')+' • запуск AI SAFE камери…');
+      await startLiveCamera();
+      aiStoppedLiveForLoad=false;
+      return;
+    }
+
     setStatus(aiRunEnabled
       ?((kind==='edn'?'EDN-GTM':'Hybrid AI')+' запущено • '+(window.tf?tf.getBackend().toUpperCase():'AI'))
       :((kind==='edn'?'EDN-GTM':'Hybrid AI')+' зупинено'));
@@ -736,6 +765,16 @@ void main(){
   $('photoBtn').onclick=()=>{$('photoInput').click();};
   $('videoBtn').onclick=()=>{$('videoInput').click();};
   function liveConstraints(){
+    const aiSafe=isIOS&&!!sessions.edn&&aiRunEnabled&&(algo()==='edn'||algo()==='hybrid');
+    if(aiSafe){
+      return {video:{
+        facingMode:{ideal:'environment'},
+        width:{ideal:640,max:640},
+        height:{ideal:360,max:480},
+        frameRate:{ideal:10,max:15},
+        aspectRatio:{ideal:1.7777778}
+      },audio:false};
+    }
     const q=cameraQuality?.value||'auto', f=cameraFps?.value||'auto';
     let width={ideal:1920},height={ideal:1080};
     if(q==='1080'){width={ideal:1920,max:1920};height={ideal:1080,max:1080};}
@@ -765,7 +804,8 @@ void main(){
         cameraZoomVal.textContent=Number(cameraZoom.value).toFixed(1)+'×';
       }
       viewerStage.style.setProperty('--media-aspect',(settings.width||video.videoWidth)+' / '+(settings.height||video.videoHeight));
-      setStatus('LIVE камера • '+(settings.width||video.videoWidth)+'×'+(settings.height||video.videoHeight)+(settings.frameRate?' • '+Math.round(settings.frameRate)+' FPS':'')+' • локальна обробка.');
+      const aiSafe=isIOS&&!!sessions.edn&&aiRunEnabled&&(algo()==='edn'||algo()==='hybrid');
+      setStatus((aiSafe?'AI SAFE камера':'LIVE камера')+' • '+(settings.width||video.videoWidth)+'×'+(settings.height||video.videoHeight)+(settings.frameRate?' • '+Math.round(settings.frameRate)+' FPS':'')+(aiSafe?' • EDN input 320×192':' • локальна обробка.'));
       start();
     }catch(e){setStatus('LIVE camera error: '+e.message);}
   }
