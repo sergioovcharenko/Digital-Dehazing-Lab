@@ -401,6 +401,13 @@ void main(){
       return sessions.edn;
     }
 
+    if(isIOS){
+      modelLoads.edn.state='idle';
+      setEdnModelUI('idle',0);
+      setStatus('iPhone: важку TFJS EDN-GTM вимкнено, щоб Safari не перезапускав сторінку. Готується Lite TFLite.');
+      return null;
+    }
+
     if(isIOS&&sourceMode==='live'){
       aiStoppedLiveForLoad=true;
       stop();
@@ -475,6 +482,16 @@ void main(){
   if(hybridLoadBtn)hybridLoadBtn.onclick=e=>modelButtonAction('hybrid',e);
 
   setEdnModelUI(sessions.edn?'ready':'idle',sessions.edn?1:0);
+  if(isIOS){
+    const t=document.getElementById('ednLoadText');
+    const h=document.getElementById('hybridLoadText');
+    const b=document.getElementById('ednLoadBtn');
+    const hb=document.getElementById('hybridLoadBtn');
+    if(t)t.textContent='iPhone SAFE • очікує Lite TFLite';
+    if(h)h.textContent='iPhone SAFE • очікує Lite TFLite';
+    if(b)b.textContent='Lite модель готується';
+    if(hb)hb.textContent='Lite модель готується';
+  }
   updateAiRunButtons();
 
   function minFilter2D(src,W,H,rad){
