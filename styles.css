@@ -314,3 +314,19 @@ button{touch-action:manipulation}
 .modelLoadBtn:disabled{opacity:.55;color:#657483}
 .algoModelRow.model-loading .modelLoadBtn{pointer-events:none}
 .algoModelRow.model-ready .modelLoadBtn{color:#1f7a46;border-color:#b8dcc7}
+
+.advancedAlgorithms .algoModelRow{
+  min-height:42px;
+  padding:9px;
+  border:1px solid #dce3ea;
+  border-radius:10px;
+  background:#f8fafc;
+  box-sizing:border-box;
+}
+.advancedAlgorithms .algoModelRow>.algoChoice{
+  min-height:auto;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+}
