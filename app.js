@@ -49,7 +49,7 @@
     applyViewerLayout();
     if(sourceMode==='photo') renderPhoto();
   });
-  document.querySelectorAll('input[name=algo]').forEach(x=>x.onchange=()=>{
+  document.querySelectorAll('input[name=algo]').forEach(x=>x.onchange=()=>{if(x.disabled)return;
     advancedOverride=true;
     setLabels();
     if(engineStat)engineStat.textContent=engineName();
@@ -273,8 +273,7 @@ void main(){
         try{const p=await renderAI(a,src,w,h);compose(src,p,w,h);recordBench(a,performance.now()-t0);}
         finally{aiBusy=false;}
       }else if(a==='hybrid'){
-        setStatus('HYBRID буде активований після фактичного benchmark EDN/AID; зараз не підміняємо AI звичайним фільтром.');
-        const p=renderWebL(src,w,h,s);compose(src,p,w,h);
+        throw Error('AI Hybrid не встановлено');
       }
       const ms=performance.now()-t0;latEl.textContent=ms.toFixed(1)+' ms';
       if(outputStat)outputStat.textContent=out.width+'×'+out.height;
