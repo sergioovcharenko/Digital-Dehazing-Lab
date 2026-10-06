@@ -16,7 +16,9 @@
   let sourceMode='video', stream=null, objectUrl=null, running=false, raf=0, lastTs=0, frames=0, fpsTs=0;
   let viewMode='split', splitDirection='auto', liveTrack=null, digitalZoom=1, frozen=false;
   let autoS=.60, autoTs=0, currentPhoto=null, sceneMode='DAY', autoContrast=1, autoDenoise=0;
-  let aiBusy=false, advancedOverride=false;
+  let aiBusy=false, advancedOverride=false, tfScriptPromise=null, lastAiAttempt=0;
+  const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
+  const AI_INTERVAL_MS=isIOS?500:160;
   const bench={classic:[],webl:[],edn:[],aid:[]};
 
   function algo(){return document.querySelector('input[name=algo]:checked')?.value||'webl';}
@@ -61,8 +63,11 @@
     advancedOverride=true;
     setLabels();
     if(engineStat)engineStat.textContent=engineName();
-    prepareModelForAlgo(x.value);
-    if(sourceMode==='photo' && x.value!=='edn' && x.value!=='hybrid')renderPhoto();
+    if((x.value==='edn'||x.value==='hybrid')&&!sessions.edn){
+      setStatus('Модель ще не завантажена. Натисніть кнопку «Завантажити модель» під режимом.');
+    }else if(sourceMode==='photo'){
+      renderPhoto();
+    }
   });
 
   // --- Exact WebL/Adaptive family: shader derived from the existing v20 pipeline.
@@ -227,17 +232,20 @@ void main(){
     if(!row)return;
     row.classList.toggle('model-ready',state==='ready');
     row.classList.toggle('model-error',state==='error');
-    row.classList.toggle('model-loading',state==='loading');
+    row.classList.toggle('model-loading',state==='loading'||state==='initializing');
   }
+
   function setEdnModelUI(state,progress=0,error=''){
     const pct=Math.max(0,Math.min(100,Math.round(progress*100)));
     const text=state==='ready'?'Готово • модель у пам\'яті':
+      state==='initializing'?'Ініціалізація моделі…':
       state==='loading'?('Завантаження моделі… '+pct+'%'):
       state==='error'?('Помилка: '+error):
       'Не завантажено • 94 МБ';
     const hybridText=state==='ready'?'Готово • EDN-GTM завантажено':
+      state==='initializing'?'Ініціалізація EDN-GTM…':
       state==='loading'?('Завантаження EDN-GTM… '+pct+'%'):
-      state==='error'?('EDN-GTM: помилка завантаження'):
+      state==='error'?'EDN-GTM: помилка завантаження':
       'Очікує EDN-GTM • 94 МБ';
 
     const ednText=document.getElementById('ednLoadText');
@@ -246,12 +254,27 @@ void main(){
     const hyText=document.getElementById('hybridLoadText');
     const hyPct=document.getElementById('hybridLoadPct');
     const hyBar=document.getElementById('hybridLoadBar');
+    const ednBtn=document.getElementById('ednLoadBtn');
+    const hyBtn=document.getElementById('hybridLoadBtn');
+
     if(ednText)ednText.textContent=text;
-    if(ednPct)ednPct.textContent=state==='idle'?'0%':state==='ready'?'100%':pct+'%';
-    if(ednBar)ednBar.style.width=(state==='ready'?100:pct)+'%';
     if(hyText)hyText.textContent=hybridText;
-    if(hyPct)hyPct.textContent=state==='idle'?'0%':state==='ready'?'100%':pct+'%';
-    if(hyBar)hyBar.style.width=(state==='ready'?100:pct)+'%';
+    const shownPct=state==='idle'?0:(state==='ready'||state==='initializing'?100:pct);
+    if(ednPct)ednPct.textContent=shownPct+'%';
+    if(hyPct)hyPct.textContent=shownPct+'%';
+    if(ednBar)ednBar.style.width=shownPct+'%';
+    if(hyBar)hyBar.style.width=shownPct+'%';
+
+    const busy=state==='loading'||state==='initializing';
+    if(ednBtn){
+      ednBtn.disabled=busy||state==='ready';
+      ednBtn.textContent=state==='ready'?'Модель готова':busy?'Завантаження…':state==='error'?'Повторити завантаження':'Завантажити модель';
+    }
+    if(hyBtn){
+      hyBtn.disabled=busy||state==='ready';
+      hyBtn.textContent=state==='ready'?'EDN-GTM готова':busy?'Завантаження…':state==='error'?'Повторити завантаження':'Завантажити EDN-GTM';
+    }
+
     setModelRowState('edn',state);
     setModelRowState('hybrid',state);
   }
@@ -260,21 +283,37 @@ void main(){
     return modelLoads[kind]?.state||'idle';
   }
 
+  function ensureTfJs(){
+    if(window.tf)return Promise.resolve(window.tf);
+    if(tfScriptPromise)return tfScriptPromise;
+    tfScriptPromise=new Promise((resolve,reject)=>{
+      const script=document.createElement('script');
+      script.src='https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js';
+      script.async=true;
+      script.crossOrigin='anonymous';
+      script.onload=()=>window.tf?resolve(window.tf):reject(new Error('TensorFlow.js не ініціалізувався'));
+      script.onerror=()=>reject(new Error('Не вдалося завантажити TensorFlow.js'));
+      document.head.appendChild(script);
+    }).catch(err=>{tfScriptPromise=null;throw err;});
+    return tfScriptPromise;
+  }
+
   async function getSession(kind){
     if(sessions[kind])return sessions[kind];
 
     if(kind==='edn'){
       if(modelLoads.edn.promise)return modelLoads.edn.promise;
-      if(!window.tf)throw Error('TensorFlow.js unavailable');
 
       modelLoads.edn.state='loading';
       modelLoads.edn.progress=0;
       modelLoads.edn.error=null;
       setEdnModelUI('loading',0);
-      setStatus('EDN-GTM: завантаження моделі • 94 МБ');
+      setStatus('EDN-GTM: підготовка TensorFlow.js…');
 
       modelLoads.edn.promise=(async()=>{
         try{
+          await ensureTfJs();
+          setStatus('EDN-GTM: завантаження моделі • 94 МБ');
           try{await tf.setBackend('webgl');}catch(_){}
           await tf.ready();
 
@@ -290,20 +329,27 @@ void main(){
             }
           });
 
+          modelLoads.edn.state='initializing';
+          setEdnModelUI('initializing',1);
+          setStatus('EDN-GTM: модель завантажена • підготовка до першого кадру…');
+          await new Promise(resolve=>setTimeout(resolve,80));
+
           sessions.edn=model;
           modelLoads.edn.state='ready';
           modelLoads.edn.progress=1;
           setEdnModelUI('ready',1);
           setStatus('EDN-GTM готовий • NH-HAZE 192×320');
+          if((algo()==='edn'||algo()==='hybrid')&&sourceMode==='photo')renderPhoto();
           return model;
         }catch(e){
           const msg=e?.message||String(e);
           modelLoads.edn.state='error';
           modelLoads.edn.error=msg;
           setEdnModelUI('error',modelLoads.edn.progress,msg.length>54?msg.slice(0,54)+'…':msg);
-          throw Error('не вдалося завантажити TFJS модель: '+msg);
+          setStatus('EDN-GTM: '+msg);
+          throw e;
         }finally{
-          if(modelLoads.edn.state!=='loading')modelLoads.edn.promise=null;
+          modelLoads.edn.promise=null;
         }
       })();
       return modelLoads.edn.promise;
@@ -317,19 +363,18 @@ void main(){
     }catch(e){throw Error('model asset not installed: '+modelCfg[kind].url);}
   }
 
-  function prepareModelForAlgo(kind){
-    if(kind!=='edn'&&kind!=='hybrid')return;
+  function loadEdnModel(){
     if(sessions.edn){
       setEdnModelUI('ready',1);
-      if(sourceMode==='photo')renderPhoto();
-      return;
+      return Promise.resolve(sessions.edn);
     }
-    getSession('edn').then(()=>{
-      if((algo()==='edn'||algo()==='hybrid')&&sourceMode==='photo')renderPhoto();
-    }).catch(e=>{
-      setStatus('EDN-GTM: '+e.message);
-    });
+    return getSession('edn');
   }
+
+  const ednLoadBtn=document.getElementById('ednLoadBtn');
+  const hybridLoadBtn=document.getElementById('hybridLoadBtn');
+  if(ednLoadBtn)ednLoadBtn.onclick=e=>{e.preventDefault();e.stopPropagation();loadEdnModel().catch(()=>{});};
+  if(hybridLoadBtn)hybridLoadBtn.onclick=e=>{e.preventDefault();e.stopPropagation();loadEdnModel().catch(()=>{});};
 
   setEdnModelUI(sessions.edn?'ready':'idle',sessions.edn?1:0);
 
@@ -536,11 +581,12 @@ void main(){
       else if(a==='classic'){const p=renderClassic(src,w,h,s);compose(src,p,w,h);recordBench('classic',performance.now()-t0);}
       else if(a==='edn'){
         if(!sessions.edn){
-          prepareModelForAlgo('edn');
           compose(src,src,w,h);
           latEl.textContent='MODEL';
           return false;
         }
+        if(now-lastAiAttempt<AI_INTERVAL_MS)return false;
+        lastAiAttempt=now;
         if(aiBusy)return false;aiBusy=true;
         try{const p=await renderAI('edn',src,w,h);compose(src,p,w,h);recordBench('edn',performance.now()-t0);}
         finally{aiBusy=false;}
@@ -550,11 +596,12 @@ void main(){
         finally{aiBusy=false;}
       }else if(a==='hybrid'){
         if(!sessions.edn){
-          prepareModelForAlgo('hybrid');
           compose(src,src,w,h);
           latEl.textContent='MODEL';
           return false;
         }
+        if(now-lastAiAttempt<AI_INTERVAL_MS)return false;
+        lastAiAttempt=now;
         if(aiBusy)return false;aiBusy=true;
         try{
           const ai=await renderAI('edn',src,w,h);
