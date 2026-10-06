@@ -23,6 +23,14 @@
   function engineName(){
     return ({original:'OFF',classic:'DCP',webl:'WEBL',edn:'EDN-GTM',aid:'AID',hybrid:'HYBRID'})[algo()]||algo().toUpperCase();
   }
+  function ensureAvailableAlgorithm(){
+    const current=algo();
+    if(current==='edn'||current==='aid'||current==='hybrid'){
+      const fallback=document.querySelector('input[name=algo][value="webl"]');
+      if(fallback){fallback.checked=true;advancedOverride=false;}
+      setStatus('AI-модель не встановлена • використовується WebL / Adaptive MAX');
+    }
+  }
   function manualLevelName(){
     const v=Number(strength.value);
     return v<50?'LOW':v<80?'MEDIUM':'HIGH';
@@ -283,6 +291,7 @@ void main(){
     el.textContent=avg.toFixed(1)+' ms • '+Math.round(1000/avg)+' FPS theoretical';
   }
   async function processFrame(now=performance.now()){
+    ensureAvailableAlgorithm();
     const [w,h,src]=sourceDims();if(!src||!w||!h)return;
     analyzeAuto(src,w,h,now);const a=algo(),s=strength01(),t0=performance.now();
     if(modeStat)modeStat.textContent=autoStrength.checked?'AUTO':('MANUAL '+manualLevelName());
@@ -477,6 +486,7 @@ void main(){
   window.addEventListener('online',()=>{$('offlineState').textContent='ONLINE';});
   window.addEventListener('offline',()=>{$('offlineState').textContent='OFFLINE';});
   $('offlineState').textContent=navigator.onLine?'ONLINE':'OFFLINE';
+  ensureAvailableAlgorithm();
   setLabels();
   setMode(true);
   if(transportBar)transportBar.setAttribute('hidden','');
