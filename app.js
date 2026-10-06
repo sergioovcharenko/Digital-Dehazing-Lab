@@ -25,10 +25,10 @@
   }
   function ensureAvailableAlgorithm(){
     const current=algo();
-    if(current==='edn'||current==='aid'||current==='hybrid'){
+    if(current==='aid'||current==='hybrid'){
       const fallback=document.querySelector('input[name=algo][value="webl"]');
       if(fallback){fallback.checked=true;advancedOverride=false;}
-      setStatus('AI-модель не встановлена • використовується WebL / Adaptive MAX');
+      setStatus('Ця AI-модель ще не встановлена • використовується WebL / Adaptive MAX');
     }
   }
   function manualLevelName(){
@@ -213,12 +213,25 @@ void main(){
 
   // --- AI model hooks. Real model inference only; no fake filter fallback.
   const modelCfg={
-    edn:{url:'models/edn_gtm_densehaze_192x320.onnx',size:[192,320]},
-    aid:{url:'models/aid_transformer_256.onnx',size:[256,256]}
+    edn:{url:'models/edn-gtm/nhhaze-192x320/model.json',size:[192,320],runtime:'tfjs'},
+    aid:{url:'models/aid_transformer_256.onnx',size:[256,256],runtime:'onnx'}
   };
   const sessions={};
   async function getSession(kind){
     if(sessions[kind])return sessions[kind];
+    if(kind==='edn'){
+      if(!window.tf)throw Error('TensorFlow.js unavailable');
+      try{
+        setStatus('EDN-GTM: завантаження моделі… ~100 МБ при першому запуску');
+        try{await tf.setBackend('webgl');}catch(_){}
+        await tf.ready();
+        sessions[kind]=await tf.loadGraphModel(modelCfg[kind].url);
+        setStatus('EDN-GTM готовий • NH-HAZE 192×320');
+        return sessions[kind];
+      }catch(e){
+        throw Error('не вдалося завантажити TFJS модель: '+(e?.message||e));
+      }
+    }
     if(!window.ort)throw Error('ONNX Runtime Web unavailable');
     try{
       ort.env.wasm.numThreads=Math.min(4,navigator.hardwareConcurrency||2);
@@ -226,22 +239,67 @@ void main(){
       return sessions[kind];
     }catch(e){throw Error('model asset not installed: '+modelCfg[kind].url);}
   }
+  function buildEdnInput(d,H,W){
+    const input=new Float32Array(H*W*4),gray=new Float32Array(H*W);
+    let A=.85;
+    for(let i=0,p=0;i<d.length;i+=4,p++){
+      const r=d[i]/255,g=d[i+1]/255,b=d[i+2]/255;
+      gray[p]=Math.min(r,g,b);A=Math.max(A,r,g,b);
+    }
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+      const p=y*W+x,i=p*4;let mn=1;
+      for(let yy=Math.max(0,y-2);yy<=Math.min(H-1,y+2);yy++)
+        for(let xx=Math.max(0,x-2);xx<=Math.min(W-1,x+2);xx++)
+          mn=Math.min(mn,gray[yy*W+xx]);
+      const tr=1-.95*Math.min(1,mn/Math.max(.35,A));
+      input[p*4]=(d[i]-127.5)/127.5;
+      input[p*4+1]=(d[i+1]-127.5)/127.5;
+      input[p*4+2]=(d[i+2]-127.5)/127.5;
+      input[p*4+3]=2*(tr-.5);
+    }
+    return input;
+  }
   async function renderAI(kind,src,w,h){
     const sess=await getSession(kind),[H,W]=modelCfg[kind].size;
-    const tmp=document.createElement('canvas');tmp.width=W;tmp.height=H;const c=tmp.getContext('2d',{willReadFrequently:true});c.drawImage(src,0,0,W,H);
+    const tmp=document.createElement('canvas');tmp.width=W;tmp.height=H;
+    const c=tmp.getContext('2d',{willReadFrequently:true});c.drawImage(src,0,0,W,H);
     const d=c.getImageData(0,0,W,H).data;
     if(kind==='edn'){
-      // EDN-GTM requires RGB plus a transmission-map channel. Browser lab computes a lightweight DCP transmission estimate.
-      const input=new Float32Array(H*W*4),gray=new Float32Array(H*W);
-      let A=.85;
-      for(let i=0,p=0;i<d.length;i+=4,p++){const r=d[i]/255,g=d[i+1]/255,b=d[i+2]/255;gray[p]=Math.min(r,g,b);A=Math.max(A,r,g,b);}
-      for(let y=0;y<H;y++)for(let x=0;x<W;x++){const p=y*W+x,i=p*4;let mn=1;for(let yy=Math.max(0,y-2);yy<=Math.min(H-1,y+2);yy++)for(let xx=Math.max(0,x-2);xx<=Math.min(W-1,x+2);xx++)mn=Math.min(mn,gray[yy*W+xx]);const tr=1-.95*Math.min(1,mn/Math.max(.35,A));input[p*4]=(d[i]-127.5)/127.5;input[p*4+1]=(d[i+1]-127.5)/127.5;input[p*4+2]=(d[i+2]-127.5)/127.5;input[p*4+3]=2*(tr-.5);}
-      const name=sess.inputNames[0],res=await sess.run({[name]:new ort.Tensor('float32',input,[1,H,W,4])}),o=res[sess.outputNames[0]].data;
-      const outIm=c.createImageData(W,H);for(let p=0;p<H*W;p++){outIm.data[p*4]=Math.max(0,Math.min(255,o[p*3]));outIm.data[p*4+1]=Math.max(0,Math.min(255,o[p*3+1]));outIm.data[p*4+2]=Math.max(0,Math.min(255,o[p*3+2]));outIm.data[p*4+3]=255;}c.putImageData(outIm,0,0);return tmp;
+      const input=buildEdnInput(d,H,W);
+      const x=tf.tensor4d(input,[1,H,W,4],'float32');
+      let y=null;
+      try{
+        const raw=await sess.executeAsync(x);
+        y=Array.isArray(raw)?raw[0]:raw;
+        const o=await y.data();
+        const outIm=c.createImageData(W,H);
+        let maxSample=0;
+        for(let p=0;p<Math.min(H*W,2048);p++)maxSample=Math.max(maxSample,Math.abs(o[p*3]||0),Math.abs(o[p*3+1]||0),Math.abs(o[p*3+2]||0));
+        const scale=maxSample<=1.5?255:1;
+        for(let p=0;p<H*W;p++){
+          outIm.data[p*4]=Math.max(0,Math.min(255,o[p*3]*scale));
+          outIm.data[p*4+1]=Math.max(0,Math.min(255,o[p*3+1]*scale));
+          outIm.data[p*4+2]=Math.max(0,Math.min(255,o[p*3+2]*scale));
+          outIm.data[p*4+3]=255;
+        }
+        c.putImageData(outIm,0,0);
+        return tmp;
+      }finally{
+        x.dispose();
+        if(Array.isArray(y))y.forEach(t=>t?.dispose?.()); else y?.dispose?.();
+      }
     }else{
-      const input=new Float32Array(3*H*W);for(let p=0;p<H*W;p++){input[p]=d[p*4]/255;input[H*W+p]=d[p*4+1]/255;input[2*H*W+p]=d[p*4+2]/255;}
+      const input=new Float32Array(3*H*W);
+      for(let p=0;p<H*W;p++){input[p]=d[p*4]/255;input[H*W+p]=d[p*4+1]/255;input[2*H*W+p]=d[p*4+2]/255;}
       const name=sess.inputNames[0],res=await sess.run({[name]:new ort.Tensor('float32',input,[1,3,H,W])}),o=res[sess.outputNames[0]].data;
-      const outIm=c.createImageData(W,H);for(let p=0;p<H*W;p++){outIm.data[p*4]=255*Math.max(0,Math.min(1,o[p]));outIm.data[p*4+1]=255*Math.max(0,Math.min(1,o[H*W+p]));outIm.data[p*4+2]=255*Math.max(0,Math.min(1,o[2*H*W+p]));outIm.data[p*4+3]=255;}c.putImageData(outIm,0,0);return tmp;
+      const outIm=c.createImageData(W,H);
+      for(let p=0;p<H*W;p++){
+        outIm.data[p*4]=255*Math.max(0,Math.min(1,o[p]));
+        outIm.data[p*4+1]=255*Math.max(0,Math.min(1,o[H*W+p]));
+        outIm.data[p*4+2]=255*Math.max(0,Math.min(1,o[2*H*W+p]));
+        outIm.data[p*4+3]=255;
+      }
+      c.putImageData(outIm,0,0);return tmp;
     }
   }
 
@@ -311,7 +369,7 @@ void main(){
       }
       const ms=performance.now()-t0;latEl.textContent=ms.toFixed(1)+' ms';
       if(outputStat)outputStat.textContent=out.width+'×'+out.height;
-    }catch(e){setStatus((a==='edn'?'EDN-GTM':a==='aid'?'AIDTransformer':a)+': '+e.message);if(a==='edn')bEdn.textContent='model pending';if(a==='aid')bAid.textContent='model pending';compose(src,src,w,h);}
+    }catch(e){setStatus((a==='edn'?'EDN-GTM':a==='aid'?'AIDTransformer':a)+': '+e.message);if(a==='edn')bEdn.textContent='помилка моделі';if(a==='aid')bAid.textContent='model pending';compose(src,src,w,h);}
   }
   async function loop(ts){
     if(!running)return;
