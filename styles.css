@@ -208,3 +208,21 @@ button{touch-action:manipulation}
 .algoUnavailable{opacity:.48;cursor:not-allowed}
 .algoUnavailable small{margin-left:auto;font-size:11px;color:#7b8793}
 .algoUnavailable input{pointer-events:none}
+
+/* v10 robust live split */
+.viewerStage.view-two .originalPane,
+.viewerStage.view-two .processedPane,
+.viewerStage.view-mini .originalPane,
+.viewerStage.view-mini .processedPane{
+  display:grid!important;
+}
+.viewerStage.view-two.split-vertical .originalPane{grid-column:1;grid-row:1}
+.viewerStage.view-two.split-vertical .processedPane{grid-column:2;grid-row:1}
+.viewerStage.view-two.split-horizontal .originalPane{grid-column:1;grid-row:1}
+.viewerStage.view-two.split-horizontal .processedPane{grid-column:1;grid-row:2}
+.viewerStage.view-mini.split-vertical .originalPane{grid-column:1;grid-row:1}
+.viewerStage.view-mini.split-vertical .processedPane{grid-column:2;grid-row:1}
+.viewerStage.view-mini.split-horizontal .originalPane{grid-column:1;grid-row:1}
+.viewerStage.view-mini.split-horizontal .processedPane{grid-column:1;grid-row:2}
+.viewerStage.view-two .frameTag,
+.viewerStage.view-mini .frameTag{display:block!important;z-index:5}
