@@ -1,4 +1,5 @@
-name: EDN-GTM Fetch Test
+name: EDN-GTM Lite Fetch
+
 on:
   push:
     branches: [main]
@@ -20,29 +21,59 @@ jobs:
       - name: Download NH-HAZE package
         run: |
           set -euxo pipefail
-          curl -L --retry 3 --fail             "https://s3.ap-northeast-2.wasabisys.com/pinto-model-zoo/277_EDN-GTM/nhhaze.tar.gz"             -o /tmp/nhhaze.tar.gz
+          curl -L --retry 5 --retry-delay 5 --fail             "https://s3.ap-northeast-2.wasabisys.com/pinto-model-zoo/277_EDN-GTM/nhhaze.tar.gz"             -o /tmp/nhhaze.tar.gz
           tar -xzf /tmp/nhhaze.tar.gz -C /tmp
 
-      - name: Install TFJS float16 web model
+      - name: Inspect 192x320 package
         run: |
           set -euxo pipefail
-          src="/tmp/nhhaze_generator_192x320/tfjs_model_float16"
-          test -f "$src/model.json"
-          mkdir -p models/edn-gtm/nhhaze-192x320
-          cp "$src/model.json" models/edn-gtm/nhhaze-192x320/
-          cp "$src"/group1-shard*.bin models/edn-gtm/nhhaze-192x320/
-          du -sh models/edn-gtm/nhhaze-192x320
-          ls -lh models/edn-gtm/nhhaze-192x320 | head -40
+          find /tmp/nhhaze_generator_192x320 -maxdepth 2 -type f -printf '%p %s bytes\n' | sort | tee /tmp/edn-files.txt
 
-      - name: Commit model files
+      - name: Install lightweight TFLite model
+        run: |
+          set -euxo pipefail
+          base="/tmp/nhhaze_generator_192x320"
+          mkdir -p models/edn-gtm/nhhaze-192x320-lite
+
+          src=""
+          for candidate in             "$base/model_dynamic_range_quant.tflite"             "$base/model_weight_quant.tflite"             "$base/model_float16_quant.tflite"
+          do
+            if [ -f "$candidate" ]; then
+              src="$candidate"
+              break
+            fi
+          done
+
+          if [ -z "$src" ]; then
+            src="$(find "$base" -maxdepth 2 -type f \( -iname '*dynamic*range*.tflite' -o -iname '*weight*quant*.tflite' -o -iname '*float16*.tflite' \) | head -1)"
+          fi
+
+          test -n "$src"
+          test -f "$src"
+          cp "$src" models/edn-gtm/nhhaze-192x320-lite/model.tflite
+          cp /tmp/edn-files.txt models/edn-gtm/nhhaze-192x320-lite/PINTO_CONTENTS.txt
+
+          basename "$src" > models/edn-gtm/nhhaze-192x320-lite/SOURCE_VARIANT.txt
+          stat -c '%s' "$src" > models/edn-gtm/nhhaze-192x320-lite/SIZE_BYTES.txt
+
+          echo "Selected: $src"
+          ls -lh models/edn-gtm/nhhaze-192x320-lite
+
+          size="$(stat -c '%s' models/edn-gtm/nhhaze-192x320-lite/model.tflite)"
+          if [ "$size" -ge 100000000 ]; then
+            echo "Model is too large for normal GitHub storage: $size bytes"
+            exit 1
+          fi
+
+      - name: Commit lightweight model
         run: |
           set -euxo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add models/edn-gtm/nhhaze-192x320
+          git add models/edn-gtm/nhhaze-192x320-lite
           if git diff --cached --quiet; then
-            echo "Model already installed"
+            echo "Lightweight model already installed"
           else
-            git commit -m "Install EDN-GTM NH-HAZE TFJS float16 web model"
+            git commit -m "Install lightweight EDN-GTM NH-HAZE TFLite model"
             git push origin HEAD:main
           fi
