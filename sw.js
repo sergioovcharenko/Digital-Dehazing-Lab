@@ -1,4 +1,4 @@
-const CACHE='digital-dehazing-lab-v5';
+const CACHE='digital-dehazing-lab-v6';
 const CORE=['./','./index.html','./styles.css','./app.js','./classic-dcp.js','./manifest.webmanifest'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)).then(()=>self.skipWaiting()));
