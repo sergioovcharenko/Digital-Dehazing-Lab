@@ -16,9 +16,9 @@
   let sourceMode='video', stream=null, objectUrl=null, running=false, raf=0, lastTs=0, frames=0, fpsTs=0;
   let viewMode='split', splitDirection='auto', liveTrack=null, digitalZoom=1, frozen=false;
   let autoS=.60, autoTs=0, currentPhoto=null, sceneMode='DAY', autoContrast=1, autoDenoise=0;
-  let aiBusy=false, advancedOverride=false, tfScriptPromise=null, lastAiAttempt=0;
+  let aiBusy=false, advancedOverride=false, tfScriptPromise=null, tfWasmPromise=null, lastAiAttempt=0, aiRunEnabled=false;
   const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
-  const AI_INTERVAL_MS=isIOS?500:160;
+  const AI_INTERVAL_MS=isIOS?1000:160;
   const bench={classic:[],webl:[],edn:[],aid:[]};
 
   function algo(){return document.querySelector('input[name=algo]:checked')?.value||'webl';}
@@ -61,10 +61,13 @@
   });
   document.querySelectorAll('input[name=algo]').forEach(x=>x.onchange=()=>{if(x.disabled)return;
     advancedOverride=true;
+    aiRunEnabled=false;
     setLabels();
+    updateAiRunButtons();
     if(engineStat)engineStat.textContent=engineName();
-    if((x.value==='edn'||x.value==='hybrid')&&!sessions.edn){
-      setStatus('Модель ще не завантажена. Натисніть кнопку «Завантажити модель» під режимом.');
+    if(x.value==='edn'||x.value==='hybrid'){
+      if(!sessions.edn)setStatus('Модель ще не завантажена. Натисніть «Завантажити модель».');
+      else setStatus((x.value==='edn'?'EDN-GTM':'Hybrid AI')+' готовий. Натисніть «Запустити AI».');
     }else if(sourceMode==='photo'){
       renderPhoto();
     }
@@ -267,12 +270,12 @@ void main(){
 
     const busy=state==='loading'||state==='initializing';
     if(ednBtn){
-      ednBtn.disabled=busy||state==='ready';
-      ednBtn.textContent=state==='ready'?'Модель готова':busy?'Завантаження…':state==='error'?'Повторити завантаження':'Завантажити модель';
+      ednBtn.disabled=busy;
+      ednBtn.textContent=state==='ready'?'Запустити EDN-GTM':busy?'Завантаження…':state==='error'?'Повторити завантаження':'Завантажити модель';
     }
     if(hyBtn){
-      hyBtn.disabled=busy||state==='ready';
-      hyBtn.textContent=state==='ready'?'EDN-GTM готова':busy?'Завантаження…':state==='error'?'Повторити завантаження':'Завантажити EDN-GTM';
+      hyBtn.disabled=busy;
+      hyBtn.textContent=state==='ready'?'Запустити Hybrid AI':busy?'Завантаження…':state==='error'?'Повторити завантаження':'Завантажити EDN-GTM';
     }
 
     setModelRowState('edn',state);
@@ -298,6 +301,27 @@ void main(){
     return tfScriptPromise;
   }
 
+  function ensureTfWasm(){
+    if(window.tf?.findBackend?.('wasm'))return Promise.resolve();
+    if(tfWasmPromise)return tfWasmPromise;
+    tfWasmPromise=new Promise((resolve,reject)=>{
+      const script=document.createElement('script');
+      script.src='https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@4.22.0/dist/tf-backend-wasm.js';
+      script.async=true;
+      script.crossOrigin='anonymous';
+      script.onload=()=>{
+        try{
+          if(!window.tf?.wasm)throw new Error('WASM backend не ініціалізувався');
+          tf.wasm.setWasmPaths('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@4.22.0/dist/');
+          resolve();
+        }catch(e){reject(e);}
+      };
+      script.onerror=()=>reject(new Error('Не вдалося завантажити TensorFlow WASM backend'));
+      document.head.appendChild(script);
+    }).catch(err=>{tfWasmPromise=null;throw err;});
+    return tfWasmPromise;
+  }
+
   async function getSession(kind){
     if(sessions[kind])return sessions[kind];
 
@@ -313,9 +337,16 @@ void main(){
       modelLoads.edn.promise=(async()=>{
         try{
           await ensureTfJs();
-          setStatus('EDN-GTM: завантаження моделі • 94 МБ');
-          try{await tf.setBackend('webgl');}catch(_){}
+          if(isIOS){
+            setStatus('EDN-GTM: iPhone SAFE • підготовка WASM…');
+            await ensureTfWasm();
+            const ok=await tf.setBackend('wasm');
+            if(!ok)throw new Error('WASM backend недоступний');
+          }else{
+            try{await tf.setBackend('webgl');}catch(_){}
+          }
           await tf.ready();
+          setStatus('EDN-GTM: завантаження моделі • 94 МБ • '+tf.getBackend().toUpperCase());
 
           const model=await tf.loadGraphModel(modelCfg.edn.url,{
             onProgress:(fraction)=>{
@@ -338,8 +369,9 @@ void main(){
           modelLoads.edn.state='ready';
           modelLoads.edn.progress=1;
           setEdnModelUI('ready',1);
-          setStatus('EDN-GTM готовий • NH-HAZE 192×320');
-          if((algo()==='edn'||algo()==='hybrid')&&sourceMode==='photo')renderPhoto();
+          aiRunEnabled=false;
+          setStatus('EDN-GTM готовий • '+tf.getBackend().toUpperCase()+' • натисніть «Запустити AI»');
+          updateAiRunButtons();
           return model;
         }catch(e){
           const msg=e?.message||String(e);
@@ -373,10 +405,48 @@ void main(){
 
   const ednLoadBtn=document.getElementById('ednLoadBtn');
   const hybridLoadBtn=document.getElementById('hybridLoadBtn');
-  if(ednLoadBtn)ednLoadBtn.onclick=e=>{e.preventDefault();e.stopPropagation();loadEdnModel().catch(()=>{});};
-  if(hybridLoadBtn)hybridLoadBtn.onclick=e=>{e.preventDefault();e.stopPropagation();loadEdnModel().catch(()=>{});};
+
+  function updateAiRunButtons(){
+    const ready=!!sessions.edn;
+    const active=aiRunEnabled&&(algo()==='edn'||algo()==='hybrid');
+    if(ednLoadBtn&&ready){
+      ednLoadBtn.disabled=false;
+      ednLoadBtn.textContent=active&&algo()==='edn'?'Зупинити AI':'Запустити EDN-GTM';
+    }
+    if(hybridLoadBtn&&ready){
+      hybridLoadBtn.disabled=false;
+      hybridLoadBtn.textContent=active&&algo()==='hybrid'?'Зупинити AI':'Запустити Hybrid AI';
+    }
+  }
+
+  async function modelButtonAction(kind,e){
+    e.preventDefault();e.stopPropagation();
+    if(!sessions.edn){
+      await loadEdnModel().catch(()=>{});
+      return;
+    }
+    const radio=document.querySelector('input[name=algo][value="'+kind+'"]');
+    if(radio&&!radio.checked){
+      radio.checked=true;
+      advancedOverride=true;
+      aiRunEnabled=false;
+      setLabels();
+      if(engineStat)engineStat.textContent=engineName();
+    }
+    aiRunEnabled=!aiRunEnabled;
+    lastAiAttempt=0;
+    updateAiRunButtons();
+    setStatus(aiRunEnabled
+      ?((kind==='edn'?'EDN-GTM':'Hybrid AI')+' запущено • '+(window.tf?tf.getBackend().toUpperCase():'AI'))
+      :((kind==='edn'?'EDN-GTM':'Hybrid AI')+' зупинено'));
+    if(sourceMode==='photo')renderPhoto();
+  }
+
+  if(ednLoadBtn)ednLoadBtn.onclick=e=>modelButtonAction('edn',e);
+  if(hybridLoadBtn)hybridLoadBtn.onclick=e=>modelButtonAction('hybrid',e);
 
   setEdnModelUI(sessions.edn?'ready':'idle',sessions.edn?1:0);
+  updateAiRunButtons();
 
   function minFilter2D(src,W,H,rad){
     const row=new Float32Array(W*H),out=new Float32Array(W*H);
@@ -585,6 +655,11 @@ void main(){
           latEl.textContent='MODEL';
           return false;
         }
+        if(!aiRunEnabled){
+          compose(src,src,w,h);
+          latEl.textContent='READY';
+          return false;
+        }
         if(now-lastAiAttempt<AI_INTERVAL_MS)return false;
         lastAiAttempt=now;
         if(aiBusy)return false;aiBusy=true;
@@ -598,6 +673,11 @@ void main(){
         if(!sessions.edn){
           compose(src,src,w,h);
           latEl.textContent='MODEL';
+          return false;
+        }
+        if(!aiRunEnabled){
+          compose(src,src,w,h);
+          latEl.textContent='READY';
           return false;
         }
         if(now-lastAiAttempt<AI_INTERVAL_MS)return false;
@@ -628,7 +708,7 @@ void main(){
     if(!fpsTs)fpsTs=ts;
     if(ts-fpsTs>=1000){
       const f=Math.round(frames*1000/(ts-fpsTs));
-      const a=algo(),loading=(a==='edn'||a==='hybrid')&&getModelLoadState('edn')==='loading';
+      const a=algo(),st=getModelLoadState('edn'),loading=(a==='edn'||a==='hybrid')&&(st==='loading'||st==='initializing');
       if(!loading){
         fpsEl.textContent=f+' FPS';
         if(headerFps)headerFps.textContent=f+' FPS';
