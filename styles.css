@@ -204,3 +204,7 @@ button{touch-action:manipulation}
 @media(max-width:520px){
   .viewerPage.source-video .transport{display:grid}
 }
+
+.algoUnavailable{opacity:.48;cursor:not-allowed}
+.algoUnavailable small{margin-left:auto;font-size:11px;color:#7b8793}
+.algoUnavailable input{pointer-events:none}
