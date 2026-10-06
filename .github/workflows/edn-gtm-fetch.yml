@@ -6,35 +6,43 @@ on:
       - ".github/workflows/edn-gtm-fetch.yml"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   fetch-model:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download NH-HAZE package
         run: |
           set -euxo pipefail
           curl -L --retry 3 --fail             "https://s3.ap-northeast-2.wasabisys.com/pinto-model-zoo/277_EDN-GTM/nhhaze.tar.gz"             -o /tmp/nhhaze.tar.gz
-          ls -lh /tmp/nhhaze.tar.gz
-          tar -tzf /tmp/nhhaze.tar.gz | tee /tmp/contents.txt
+          tar -xzf /tmp/nhhaze.tar.gz -C /tmp
 
-      - name: Extract 192x320 web candidate
+      - name: Install TFJS float16 web model
         run: |
           set -euxo pipefail
-          mkdir -p /tmp/edn
-          tar -xzf /tmp/nhhaze.tar.gz -C /tmp/edn
-          find /tmp/edn -maxdepth 3 -type f -printf '%p %k KB\n' | sort | tee /tmp/files.txt
-          mkdir -p edn-artifact
-          cand="$(find /tmp/edn -type f \( -path '*nhhaze_generator_192x320*/model_float32.onnx' -o -path '*nhhaze_generator_192x320*/model_float16.tflite' -o -path '*nhhaze_generator_192x320*/model.json' \) | head -20)"
-          printf '%s\n' "$cand"
-          cp /tmp/contents.txt edn-artifact/
-          cp /tmp/files.txt edn-artifact/
-          while IFS= read -r f; do [ -n "$f" ] && cp "$f" edn-artifact/; done <<< "$cand"
-          ls -lh edn-artifact
+          src="/tmp/nhhaze_generator_192x320/tfjs_model_float16"
+          test -f "$src/model.json"
+          mkdir -p models/edn-gtm/nhhaze-192x320
+          cp "$src/model.json" models/edn-gtm/nhhaze-192x320/
+          cp "$src"/group1-shard*.bin models/edn-gtm/nhhaze-192x320/
+          du -sh models/edn-gtm/nhhaze-192x320
+          ls -lh models/edn-gtm/nhhaze-192x320 | head -40
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: edn-nhhaze-192x320
-          path: edn-artifact
-          retention-days: 7
+      - name: Commit model files
+        run: |
+          set -euxo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add models/edn-gtm/nhhaze-192x320
+          if git diff --cached --quiet; then
+            echo "Model already installed"
+          else
+            git commit -m "Install EDN-GTM NH-HAZE TFJS float16 web model"
+            git push origin HEAD:main
+          fi
