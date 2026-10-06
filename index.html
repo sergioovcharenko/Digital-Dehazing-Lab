@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest"/>
 <link rel="icon" type="image/png" sizes="192x192" href="icons/clearsight-192.png"/>
 <link rel="apple-touch-icon" href="icons/clearsight-192.png"/>
-<link rel="stylesheet" href="styles.css?v=20261006-15"/>
+<link rel="stylesheet" href="styles.css?v=20261006-16"/>
 </head>
 <body>
 <div class="appShell">
@@ -116,6 +116,7 @@
           <span class="modelLoad">
             <span class="modelLoadTop"><span id="ednLoadText">Не завантажено • 94 МБ</span><span id="ednLoadPct">0%</span></span>
             <span class="modelBar"><span id="ednLoadBar"></span></span>
+            <button id="ednLoadBtn" class="modelLoadBtn" type="button">Завантажити модель</button>
           </span>
         </label>
         <label class="algoUnavailable algoModelRow" data-model-row="aid">
@@ -127,6 +128,7 @@
           <span class="modelLoad">
             <span class="modelLoadTop"><span id="hybridLoadText">Очікує EDN-GTM • 94 МБ</span><span id="hybridLoadPct">0%</span></span>
             <span class="modelBar"><span id="hybridLoadBar"></span></span>
+            <button id="hybridLoadBtn" class="modelLoadBtn" type="button">Завантажити EDN-GTM</button>
           </span>
         </label>
       </div>
@@ -161,8 +163,7 @@
   </aside>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
 <script src="classic-dcp.js?v=20261006-14"></script>
-<script src="app.js?v=20261006-15"></script>
+<script src="app.js?v=20261006-16"></script>
 </body>
 </html>
