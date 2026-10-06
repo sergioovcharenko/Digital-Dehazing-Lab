@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest"/>
 <link rel="icon" type="image/png" sizes="192x192" href="icons/clearsight-192.png"/>
 <link rel="apple-touch-icon" href="icons/clearsight-192.png"/>
-<link rel="stylesheet" href="styles.css?v=20261006-17"/>
+<link rel="stylesheet" href="styles.css?v=20261006-18"/>
 </head>
 <body>
 <div class="appShell">
@@ -111,26 +111,26 @@
         <label><input type="radio" name="algo" value="original"> OFF / Original</label>
         <label><input type="radio" name="algo" value="classic"> Classic DCP</label>
         <label><input type="radio" name="algo" value="webl" checked> WebL / Adaptive MAX</label>
-        <label class="algoModelRow" data-model-row="edn">
-          <span class="algoChoice"><input type="radio" name="algo" value="edn"><span>EDN-GTM <small>NH-HAZE • 192×320</small></span></span>
-          <span class="modelLoad">
-            <span class="modelLoadTop"><span id="ednLoadText">Не завантажено • 94 МБ</span><span id="ednLoadPct">0%</span></span>
+        <div class="algoModelRow" data-model-row="edn">
+          <label class="algoChoice"><input type="radio" name="algo" value="edn"><span>EDN-GTM <small>NH-HAZE • 192×320</small></span></label>
+          <div class="modelLoad">
+            <div class="modelLoadTop"><span id="ednLoadText">Не завантажено • 94 МБ</span><span id="ednLoadPct">0%</span></div>
             <span class="modelBar"><span id="ednLoadBar"></span></span>
             <button id="ednLoadBtn" class="modelLoadBtn" type="button">Завантажити модель</button>
-          </span>
-        </label>
-        <label class="algoUnavailable algoModelRow" data-model-row="aid">
-          <span class="algoChoice"><input type="radio" name="algo" value="aid" disabled><span>AIDTransformer <small>не встановлено</small></span></span>
-          <span class="modelLoad modelLoadUnavailable"><span class="modelLoadTop"><span>Браузерна модель ще не готова</span></span></span>
-        </label>
-        <label class="algoModelRow" data-model-row="hybrid">
-          <span class="algoChoice"><input type="radio" name="algo" value="hybrid"><span>Hybrid AI <small>EDN-GTM + WebL</small></span></span>
-          <span class="modelLoad">
-            <span class="modelLoadTop"><span id="hybridLoadText">Очікує EDN-GTM • 94 МБ</span><span id="hybridLoadPct">0%</span></span>
+          </div>
+        </div>
+        <div class="algoUnavailable algoModelRow" data-model-row="aid">
+          <label class="algoChoice"><input type="radio" name="algo" value="aid" disabled><span>AIDTransformer <small>не встановлено</small></span></label>
+          <div class="modelLoad modelLoadUnavailable"><div class="modelLoadTop"><span>Браузерна модель ще не готова</span></div></div>
+        </div>
+        <div class="algoModelRow" data-model-row="hybrid">
+          <label class="algoChoice"><input type="radio" name="algo" value="hybrid"><span>Hybrid AI <small>EDN-GTM + WebL</small></span></label>
+          <div class="modelLoad">
+            <div class="modelLoadTop"><span id="hybridLoadText">Очікує EDN-GTM • 94 МБ</span><span id="hybridLoadPct">0%</span></div>
             <span class="modelBar"><span id="hybridLoadBar"></span></span>
             <button id="hybridLoadBtn" class="modelLoadBtn" type="button">Завантажити EDN-GTM</button>
-          </span>
-        </label>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -164,6 +164,6 @@
 </div>
 
 <script src="classic-dcp.js?v=20261006-14"></script>
-<script src="app.js?v=20261006-17"></script>
+<script src="app.js?v=20261006-18"></script>
 </body>
 </html>
