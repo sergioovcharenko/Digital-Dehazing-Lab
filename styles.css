@@ -154,3 +154,53 @@ button{touch-action:manipulation}
   .shot{min-width:96px}
   .advancedAlgorithms{grid-template-columns:1fr}
 }
+
+/* v8: two-frame layout + video-only controls */
+.viewerPage:not(.source-video) .transport{display:none!important}
+.viewerPage.source-video .transport{display:flex}
+
+.viewerStage.view-two,
+.viewerStage.view-mini{
+  display:grid!important;
+  padding:0;
+  gap:0;
+}
+.viewerStage.view-two.split-vertical,
+.viewerStage.view-mini.split-vertical{
+  grid-template-columns:1fr 1fr!important;
+  grid-template-rows:1fr!important;
+}
+.viewerStage.view-two.split-horizontal,
+.viewerStage.view-mini.split-horizontal{
+  grid-template-columns:1fr!important;
+  grid-template-rows:1fr 1fr!important;
+}
+.viewerStage.view-two .framePane,
+.viewerStage.view-mini .framePane{
+  position:relative!important;
+  inset:auto!important;
+  min-width:0;
+  min-height:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  border-radius:0;
+}
+.viewerStage.view-two .framePane video,
+.viewerStage.view-two .framePane img,
+.viewerStage.view-two .framePane canvas,
+.viewerStage.view-mini .framePane video,
+.viewerStage.view-mini .framePane img,
+.viewerStage.view-mini .framePane canvas{
+  width:100%!important;
+  height:100%!important;
+  max-width:100%!important;
+  max-height:100%!important;
+  object-fit:contain!important;
+}
+.viewerStage.view-mini{padding:10px;gap:10px}
+.viewerStage.view-mini .framePane{border-radius:14px;background:#080b0f;box-shadow:0 3px 14px #0005}
+
+@media(max-width:520px){
+  .viewerPage.source-video .transport{display:grid}
+}
