@@ -146,6 +146,10 @@ void main(){
 
   const capCanvas=document.createElement('canvas'), capCtx=capCanvas.getContext('2d',{willReadFrequently:true});
   const procCanvas=document.createElement('canvas'), procCtx=procCanvas.getContext('2d');
+  let classicLiveState=window.createDcpLiveState?window.createDcpLiveState():null;
+  function resetClassicLive(){
+    classicLiveState=window.createDcpLiveState?window.createDcpLiveState():null;
+  }
   function sourceDims(){
     if(sourceMode==='photo'&&currentPhoto)return [currentPhoto.naturalWidth,currentPhoto.naturalHeight,currentPhoto];
     if(video.videoWidth)return [video.videoWidth,video.videoHeight,video];
@@ -178,9 +182,25 @@ void main(){
     return [capCtx.getImageData(0,0,cw,ch),cw,ch];
   }
   function renderClassic(src,w,h,s){
-    const [im,cw,ch]=captureForCPU(src,w,h,480);
-    const arr=window.dehazeStrongDCP(im.data,cw,ch,{strength:Math.round(s*100),maxSide:480});
-    procCanvas.width=cw;procCanvas.height=ch;procCtx.putImageData(new ImageData(arr,cw,ch),0,0);
+    // Photo: full-quality DCP. Live/video: temporal fast DCP with a reused transmission map.
+    const isStill=sourceMode==='photo';
+    const liveSide=isIOS?300:(isAndroid?320:384);
+    const side=isStill?640:liveSide;
+    const [im,cw,ch]=captureForCPU(src,w,h,side);
+    let arr;
+    if(isStill||!window.dehazeLiveDCP){
+      arr=window.dehazeStrongDCP(im.data,cw,ch,{strength:Math.round(s*100),maxSide:side});
+    }else{
+      if(!classicLiveState)resetClassicLive();
+      arr=window.dehazeLiveDCP(
+        im.data,cw,ch,
+        {strength:Math.round(s*100),recomputeEvery:isIOS?5:(isAndroid?4:3)},
+        classicLiveState
+      );
+    }
+    if(procCanvas.width!==cw)procCanvas.width=cw;
+    if(procCanvas.height!==ch)procCanvas.height=ch;
+    procCtx.putImageData(new ImageData(arr,cw,ch),0,0);
     return procCanvas;
   }
   function analyzeAuto(src,w,h,now){
@@ -741,7 +761,7 @@ void main(){
     if(!bench[kind])return;const a=bench[kind];a.push(ms);if(a.length>60)a.shift();
     const avg=a.reduce((x,y)=>x+y,0)/a.length;
     const el=kind==='classic'?bClassic:kind==='webl'?bWebl:kind==='edn'?bEdn:bAid;
-    el.textContent=avg.toFixed(1)+' ms • '+Math.round(1000/avg)+' FPS theoretical';
+    el.textContent=avg.toFixed(1)+' ms • '+Math.round(1000/avg)+' FPS theoretical'+(kind==='classic'&&sourceMode!=='photo'?' • LIVE':'');
   }
   async function processFrame(now=performance.now()){
     ensureAvailableAlgorithm();
@@ -827,6 +847,7 @@ void main(){
   function stop(){running=false;cancelAnimationFrame(raf);fpsEl.textContent='— FPS';if(headerFps)headerFps.textContent='— FPS';}
 
   function activate(mode){
+    if(sourceMode!==mode)resetClassicLive();
     sourceMode=mode;
     const page=document.querySelector('.viewerPage');
     if(page){page.classList.remove('source-photo','source-video','source-live');page.classList.add('source-'+mode);}
