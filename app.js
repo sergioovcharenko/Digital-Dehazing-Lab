@@ -11,12 +11,12 @@
   const modeAuto=$('modeAuto'),modeManual=$('modeManual'),manualLevels=$('manualLevels');
   const seek=$('seek'), timeEl=$('time'), play=$('play'), transportBar=$('transportBar');
   const back10=$('back10'),forward10=$('forward10'),modeStat=$('modeStat'),sceneStat=$('sceneStat');
-  const advancedToggle=$('advancedToggle'),advancedAlgorithms=$('advancedAlgorithms');
+  const advancedToggle=$('advancedToggle'),advancedAlgorithms=$('advancedAlgorithms'),headerFps=$('headerFps');
   const bClassic=$('bClassic'), bWebl=$('bWebl'), bEdn=$('bEdn'), bAid=$('bAid');
   let sourceMode='video', stream=null, objectUrl=null, running=false, raf=0, lastTs=0, frames=0, fpsTs=0;
   let viewMode='split', splitDirection='auto', liveTrack=null, digitalZoom=1, frozen=false;
   let autoS=.60, autoTs=0, currentPhoto=null, sceneMode='DAY', autoContrast=1, autoDenoise=0;
-  let aiBusy=false;
+  let aiBusy=false, advancedOverride=false;
   const bench={classic:[],webl:[],edn:[],aid:[]};
 
   function algo(){return document.querySelector('input[name=algo]:checked')?.value||'webl';}
@@ -31,8 +31,8 @@
   function fmt(t){t=Math.max(0,Math.floor(t||0));return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');}
   function strength01(){return autoStrength.checked?autoS:Number(strength.value)/100;}
   function setLabels(){
-    const map={original:'ORIGINAL',classic:'CLASSIC DCP',webl:'WEBL',edn:'EDN-GTM',aid:'AID',hybrid:'HYBRID'};
-    label.textContent=autoStrength.checked?'AUTO':(map[algo()]||algo().toUpperCase());
+    const map={original:'OFF',classic:'DCP',webl:'WEBL',edn:'EDN-GTM',aid:'AID',hybrid:'HYBRID'};
+    label.textContent=advancedOverride?(map[algo()]||algo().toUpperCase()):(autoStrength.checked?'AUTO':('MANUAL '+manualLevelName()));
     strengthVal.textContent=Math.round(strength01()*100)+'%';
   }
   strength.oninput=()=>{setLabels(); if(sourceMode==='photo') renderPhoto();};
@@ -51,7 +51,12 @@
     viewerStage.dataset.orientation=window.matchMedia('(orientation: portrait)').matches?'portrait':'landscape';
     if(sourceMode==='photo') renderPhoto();
   });
-  document.querySelectorAll('input[name=algo]').forEach(x=>x.onchange=()=>{setLabels();if(sourceMode==='photo')renderPhoto();});
+  document.querySelectorAll('input[name=algo]').forEach(x=>x.onchange=()=>{
+    advancedOverride=true;
+    setLabels();
+    if(engineStat)engineStat.textContent=engineName();
+    if(sourceMode==='photo')renderPhoto();
+  });
 
   // --- Exact WebL/Adaptive family: shader derived from the existing v20 pipeline.
   const glCanvas=document.createElement('canvas');
@@ -269,11 +274,11 @@ void main(){
   async function loop(ts){
     if(!running)return;
     if(!lastTs||ts-lastTs>16){lastTs=ts;await processFrame(ts);frames++;}
-    if(!fpsTs)fpsTs=ts;if(ts-fpsTs>=1000){fpsEl.textContent=Math.round(frames*1000/(ts-fpsTs))+' FPS';frames=0;fpsTs=ts;}
+    if(!fpsTs)fpsTs=ts;if(ts-fpsTs>=1000){const f=Math.round(frames*1000/(ts-fpsTs));fpsEl.textContent=f+' FPS';if(headerFps)headerFps.textContent=f+' FPS';frames=0;fpsTs=ts;}
     raf=requestAnimationFrame(loop);
   }
   function start(){if(running)return;running=true;lastTs=0;frames=0;fpsTs=0;raf=requestAnimationFrame(loop);}
-  function stop(){running=false;cancelAnimationFrame(raf);fpsEl.textContent='— FPS';}
+  function stop(){running=false;cancelAnimationFrame(raf);fpsEl.textContent='— FPS';if(headerFps)headerFps.textContent='— FPS';}
 
   function activate(mode){
     sourceMode=mode;
@@ -294,7 +299,7 @@ void main(){
     return {video:{facingMode:{ideal:'environment'},width,height,frameRate,aspectRatio:{ideal:1.7777778}},audio:false};
   }
   async function startLiveCamera(){
-    activate('live');stop();frozen=false;if(freezeFrame)freezeFrame.textContent='Стоп-кадр';
+    activate('live');stop();frozen=false;if(freezeFrame)freezeFrame.textContent='Ⅱ';
     if(stream)stream.getTracks().forEach(t=>t.stop());
     try{
       stream=await navigator.mediaDevices.getUserMedia(liveConstraints());
@@ -354,7 +359,7 @@ void main(){
     if(frozen){
       await processFrame();
       video.pause();stop();
-      freezeFrame.textContent='Продовжити';
+      freezeFrame.textContent='▶';
       setStatus('Стоп-кадр зафіксовано.');
     }else{
       try{await video.play();start();}catch(e){}
@@ -398,14 +403,15 @@ void main(){
   if(settingsClose)settingsClose.onclick=closeSettings;
   if(settingsBackdrop)settingsBackdrop.onclick=closeSettings;
   if(advancedToggle)advancedToggle.onclick=()=>{
-    const show=advancedAlgorithms.hidden;
-    advancedAlgorithms.hidden=!show;
+    const show=advancedAlgorithms.hasAttribute('hidden');
+    if(show)advancedAlgorithms.removeAttribute('hidden'); else advancedAlgorithms.setAttribute('hidden','');
     advancedToggle.textContent=show?'Сховати розширені режими':'Показати приховані режими';
   };
 
   function setMode(auto){
     autoStrength.checked=auto;
     modeAuto.classList.toggle('active',auto);
+    advancedOverride=false;
     modeManual.classList.toggle('active',!auto);
     manualLevels.hidden=auto;
     label.textContent=auto?'AUTO':'MANUAL';
