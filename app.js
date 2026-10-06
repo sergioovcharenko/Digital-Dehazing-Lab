@@ -61,7 +61,8 @@
     advancedOverride=true;
     setLabels();
     if(engineStat)engineStat.textContent=engineName();
-    if(sourceMode==='photo')renderPhoto();
+    prepareModelForAlgo(x.value);
+    if(sourceMode==='photo' && x.value!=='edn' && x.value!=='hybrid')renderPhoto();
   });
 
   // --- Exact WebL/Adaptive family: shader derived from the existing v20 pipeline.
@@ -217,21 +218,97 @@ void main(){
     aid:{url:'models/aid_transformer_256.onnx',size:[256,256],runtime:'onnx'}
   };
   const sessions={};
+  const modelLoads={
+    edn:{state:'idle',progress:0,promise:null,error:null}
+  };
+
+  function setModelRowState(rowKey,state){
+    const row=document.querySelector('[data-model-row="'+rowKey+'"]');
+    if(!row)return;
+    row.classList.toggle('model-ready',state==='ready');
+    row.classList.toggle('model-error',state==='error');
+    row.classList.toggle('model-loading',state==='loading');
+  }
+  function setEdnModelUI(state,progress=0,error=''){
+    const pct=Math.max(0,Math.min(100,Math.round(progress*100)));
+    const text=state==='ready'?'Готово • модель у пам\'яті':
+      state==='loading'?('Завантаження моделі… '+pct+'%'):
+      state==='error'?('Помилка: '+error):
+      'Не завантажено • 94 МБ';
+    const hybridText=state==='ready'?'Готово • EDN-GTM завантажено':
+      state==='loading'?('Завантаження EDN-GTM… '+pct+'%'):
+      state==='error'?('EDN-GTM: помилка завантаження'):
+      'Очікує EDN-GTM • 94 МБ';
+
+    const ednText=document.getElementById('ednLoadText');
+    const ednPct=document.getElementById('ednLoadPct');
+    const ednBar=document.getElementById('ednLoadBar');
+    const hyText=document.getElementById('hybridLoadText');
+    const hyPct=document.getElementById('hybridLoadPct');
+    const hyBar=document.getElementById('hybridLoadBar');
+    if(ednText)ednText.textContent=text;
+    if(ednPct)ednPct.textContent=state==='idle'?'0%':state==='ready'?'100%':pct+'%';
+    if(ednBar)ednBar.style.width=(state==='ready'?100:pct)+'%';
+    if(hyText)hyText.textContent=hybridText;
+    if(hyPct)hyPct.textContent=state==='idle'?'0%':state==='ready'?'100%':pct+'%';
+    if(hyBar)hyBar.style.width=(state==='ready'?100:pct)+'%';
+    setModelRowState('edn',state);
+    setModelRowState('hybrid',state);
+  }
+
+  function getModelLoadState(kind){
+    return modelLoads[kind]?.state||'idle';
+  }
+
   async function getSession(kind){
     if(sessions[kind])return sessions[kind];
+
     if(kind==='edn'){
+      if(modelLoads.edn.promise)return modelLoads.edn.promise;
       if(!window.tf)throw Error('TensorFlow.js unavailable');
-      try{
-        setStatus('EDN-GTM: завантаження моделі… ~100 МБ при першому запуску');
-        try{await tf.setBackend('webgl');}catch(_){}
-        await tf.ready();
-        sessions[kind]=await tf.loadGraphModel(modelCfg[kind].url);
-        setStatus('EDN-GTM готовий • NH-HAZE 192×320');
-        return sessions[kind];
-      }catch(e){
-        throw Error('не вдалося завантажити TFJS модель: '+(e?.message||e));
-      }
+
+      modelLoads.edn.state='loading';
+      modelLoads.edn.progress=0;
+      modelLoads.edn.error=null;
+      setEdnModelUI('loading',0);
+      setStatus('EDN-GTM: завантаження моделі • 94 МБ');
+
+      modelLoads.edn.promise=(async()=>{
+        try{
+          try{await tf.setBackend('webgl');}catch(_){}
+          await tf.ready();
+
+          const model=await tf.loadGraphModel(modelCfg.edn.url,{
+            onProgress:(fraction)=>{
+              const p=Number.isFinite(fraction)?fraction:0;
+              modelLoads.edn.progress=p;
+              setEdnModelUI('loading',p);
+              if(algo()==='edn'||algo()==='hybrid'){
+                setStatus('EDN-GTM: завантаження '+Math.round(p*100)+'% • 94 МБ');
+                if(headerFps)headerFps.textContent='MODEL '+Math.round(p*100)+'%';
+              }
+            }
+          });
+
+          sessions.edn=model;
+          modelLoads.edn.state='ready';
+          modelLoads.edn.progress=1;
+          setEdnModelUI('ready',1);
+          setStatus('EDN-GTM готовий • NH-HAZE 192×320');
+          return model;
+        }catch(e){
+          const msg=e?.message||String(e);
+          modelLoads.edn.state='error';
+          modelLoads.edn.error=msg;
+          setEdnModelUI('error',modelLoads.edn.progress,msg.length>54?msg.slice(0,54)+'…':msg);
+          throw Error('не вдалося завантажити TFJS модель: '+msg);
+        }finally{
+          if(modelLoads.edn.state!=='loading')modelLoads.edn.promise=null;
+        }
+      })();
+      return modelLoads.edn.promise;
     }
+
     if(!window.ort)throw Error('ONNX Runtime Web unavailable');
     try{
       ort.env.wasm.numThreads=Math.min(4,navigator.hardwareConcurrency||2);
@@ -239,6 +316,23 @@ void main(){
       return sessions[kind];
     }catch(e){throw Error('model asset not installed: '+modelCfg[kind].url);}
   }
+
+  function prepareModelForAlgo(kind){
+    if(kind!=='edn'&&kind!=='hybrid')return;
+    if(sessions.edn){
+      setEdnModelUI('ready',1);
+      if(sourceMode==='photo')renderPhoto();
+      return;
+    }
+    getSession('edn').then(()=>{
+      if((algo()==='edn'||algo()==='hybrid')&&sourceMode==='photo')renderPhoto();
+    }).catch(e=>{
+      setStatus('EDN-GTM: '+e.message);
+    });
+  }
+
+  setEdnModelUI(sessions.edn?'ready':'idle',sessions.edn?1:0);
+
   function minFilter2D(src,W,H,rad){
     const row=new Float32Array(W*H),out=new Float32Array(W*H);
     for(let y=0;y<H;y++){
@@ -430,7 +524,7 @@ void main(){
   }
   async function processFrame(now=performance.now()){
     ensureAvailableAlgorithm();
-    const [w,h,src]=sourceDims();if(!src||!w||!h)return;
+    const [w,h,src]=sourceDims();if(!src||!w||!h)return false;
     analyzeAuto(src,w,h,now);const a=algo(),s=strength01(),t0=performance.now();
     if(modeStat)modeStat.textContent=autoStrength.checked?'AUTO':('MANUAL '+manualLevelName());
     if(sceneStat)sceneStat.textContent=sceneMode;
@@ -440,12 +534,28 @@ void main(){
       if(a==='original'){compose(src,src,w,h);}
       else if(a==='webl'){const p=renderWebL(src,w,h,s);compose(src,p,w,h);recordBench('webl',performance.now()-t0);}
       else if(a==='classic'){const p=renderClassic(src,w,h,s);compose(src,p,w,h);recordBench('classic',performance.now()-t0);}
-      else if(a==='edn'||a==='aid'){
-        if(aiBusy)return;aiBusy=true;
-        try{const p=await renderAI(a,src,w,h);compose(src,p,w,h);recordBench(a,performance.now()-t0);}
+      else if(a==='edn'){
+        if(!sessions.edn){
+          prepareModelForAlgo('edn');
+          compose(src,src,w,h);
+          latEl.textContent='MODEL';
+          return false;
+        }
+        if(aiBusy)return false;aiBusy=true;
+        try{const p=await renderAI('edn',src,w,h);compose(src,p,w,h);recordBench('edn',performance.now()-t0);}
+        finally{aiBusy=false;}
+      }else if(a==='aid'){
+        if(aiBusy)return false;aiBusy=true;
+        try{const p=await renderAI('aid',src,w,h);compose(src,p,w,h);recordBench('aid',performance.now()-t0);}
         finally{aiBusy=false;}
       }else if(a==='hybrid'){
-        if(aiBusy)return;aiBusy=true;
+        if(!sessions.edn){
+          prepareModelForAlgo('hybrid');
+          compose(src,src,w,h);
+          latEl.textContent='MODEL';
+          return false;
+        }
+        if(aiBusy)return false;aiBusy=true;
         try{
           const ai=await renderAI('edn',src,w,h);
           const p=renderWebL(ai,ai.width,ai.height,Math.min(.58,Math.max(.22,s*.62)));
@@ -455,12 +565,29 @@ void main(){
       }
       const ms=performance.now()-t0;latEl.textContent=ms.toFixed(1)+' ms';
       if(outputStat)outputStat.textContent=out.width+'×'+out.height;
-    }catch(e){setStatus((a==='edn'?'EDN-GTM':a==='aid'?'AIDTransformer':a)+': '+e.message);if(a==='edn')bEdn.textContent='помилка моделі';if(a==='aid')bAid.textContent='model pending';compose(src,src,w,h);}
+      return true;
+    }catch(e){
+      setStatus((a==='edn'?'EDN-GTM':a==='aid'?'AIDTransformer':a)+': '+e.message);
+      if(a==='edn')bEdn.textContent='помилка моделі';
+      if(a==='aid')bAid.textContent='model pending';
+      compose(src,src,w,h);
+      return false;
+    }
   }
   async function loop(ts){
     if(!running)return;
-    if(!lastTs||ts-lastTs>16){lastTs=ts;await processFrame(ts);frames++;}
-    if(!fpsTs)fpsTs=ts;if(ts-fpsTs>=1000){const f=Math.round(frames*1000/(ts-fpsTs));fpsEl.textContent=f+' FPS';if(headerFps)headerFps.textContent=f+' FPS';frames=0;fpsTs=ts;}
+    let processed=false;
+    if(!lastTs||ts-lastTs>16){lastTs=ts;processed=await processFrame(ts);if(processed)frames++;}
+    if(!fpsTs)fpsTs=ts;
+    if(ts-fpsTs>=1000){
+      const f=Math.round(frames*1000/(ts-fpsTs));
+      const a=algo(),loading=(a==='edn'||a==='hybrid')&&getModelLoadState('edn')==='loading';
+      if(!loading){
+        fpsEl.textContent=f+' FPS';
+        if(headerFps)headerFps.textContent=f+' FPS';
+      }
+      frames=0;fpsTs=ts;
+    }
     raf=requestAnimationFrame(loop);
   }
   function start(){if(running)return;running=true;lastTs=0;frames=0;fpsTs=0;raf=requestAnimationFrame(loop);}
