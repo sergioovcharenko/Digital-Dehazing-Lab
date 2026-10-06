@@ -25,10 +25,10 @@
   }
   function ensureAvailableAlgorithm(){
     const current=algo();
-    if(current==='aid'||current==='hybrid'){
+    if(current==='aid'){
       const fallback=document.querySelector('input[name=algo][value="webl"]');
       if(fallback){fallback.checked=true;advancedOverride=false;}
-      setStatus('Ця AI-модель ще не встановлена • використовується WebL / Adaptive MAX');
+      setStatus('AIDTransformer потребує серверного runtime • використовується WebL / Adaptive MAX');
     }
   }
   function manualLevelName(){
@@ -118,7 +118,7 @@ void main(){
     const max=1280,sc=Math.min(1,max/Math.max(w,h)),rw=Math.max(2,Math.round(w*sc)),rh=Math.max(2,Math.round(h*sc));
     if(glCanvas.width!==rw||glCanvas.height!==rh){glCanvas.width=rw;glCanvas.height=rh;gl.viewport(0,0,rw,rh);}
     gl.useProgram(prog);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,tex);
-    if(sourceMode==='live'&&digitalZoom>1.001){
+    if(sourceMode==='live'&&src===video&&digitalZoom>1.001){
       capCanvas.width=rw;capCanvas.height=rh;drawSourceZoomed(capCtx,src,0,0,rw,rh);
       gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,capCanvas);
     }else gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,src);
@@ -239,54 +239,130 @@ void main(){
       return sessions[kind];
     }catch(e){throw Error('model asset not installed: '+modelCfg[kind].url);}
   }
-  function buildEdnInput(d,H,W){
-    const input=new Float32Array(H*W*4),gray=new Float32Array(H*W);
-    let A=.85;
-    for(let i=0,p=0;i<d.length;i+=4,p++){
-      const r=d[i]/255,g=d[i+1]/255,b=d[i+2]/255;
-      gray[p]=Math.min(r,g,b);A=Math.max(A,r,g,b);
+  function minFilter2D(src,W,H,rad){
+    const row=new Float32Array(W*H),out=new Float32Array(W*H);
+    for(let y=0;y<H;y++){
+      const off=y*W;
+      for(let x=0;x<W;x++){
+        let v=Infinity;
+        const x0=Math.max(0,x-rad),x1=Math.min(W-1,x+rad);
+        for(let xx=x0;xx<=x1;xx++)v=Math.min(v,src[off+xx]);
+        row[off+x]=v;
+      }
     }
     for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-      const p=y*W+x,i=p*4;let mn=1;
-      for(let yy=Math.max(0,y-2);yy<=Math.min(H-1,y+2);yy++)
-        for(let xx=Math.max(0,x-2);xx<=Math.min(W-1,x+2);xx++)
-          mn=Math.min(mn,gray[yy*W+xx]);
-      const tr=1-.95*Math.min(1,mn/Math.max(.35,A));
-      input[p*4]=(d[i]-127.5)/127.5;
-      input[p*4+1]=(d[i+1]-127.5)/127.5;
-      input[p*4+2]=(d[i+2]-127.5)/127.5;
-      input[p*4+3]=2*(tr-.5);
+      let v=Infinity;
+      const y0=Math.max(0,y-rad),y1=Math.min(H-1,y+rad);
+      for(let yy=y0;yy<=y1;yy++)v=Math.min(v,row[yy*W+x]);
+      out[y*W+x]=v;
+    }
+    return out;
+  }
+  function boxMean(src,W,H,rad){
+    const iw=W+1,integ=new Float64Array((W+1)*(H+1)),out=new Float32Array(W*H);
+    for(let y=1;y<=H;y++){
+      let row=0;
+      for(let x=1;x<=W;x++){
+        row+=src[(y-1)*W+x-1];
+        integ[y*iw+x]=integ[(y-1)*iw+x]+row;
+      }
+    }
+    for(let y=0;y<H;y++){
+      const y0=Math.max(0,y-rad),y1=Math.min(H,y+rad+1);
+      for(let x=0;x<W;x++){
+        const x0=Math.max(0,x-rad),x1=Math.min(W,x+rad+1);
+        const sum=integ[y1*iw+x1]-integ[y0*iw+x1]-integ[y1*iw+x0]+integ[y0*iw+x0];
+        out[y*W+x]=sum/((x1-x0)*(y1-y0));
+      }
+    }
+    return out;
+  }
+  function buildEdnInput(d,H,W){
+    const n=H*W,input=new Float32Array(n*4);
+    const r=new Float32Array(n),g=new Float32Array(n),b=new Float32Array(n),mn=new Float32Array(n),gray=new Float32Array(n);
+    for(let p=0;p<n;p++){
+      const i=p*4,rr=d[i]/255,gg=d[i+1]/255,bb=d[i+2]/255;
+      r[p]=rr;g[p]=gg;b[p]=bb;mn[p]=Math.min(rr,gg,bb);gray[p]=.299*rr+.587*gg+.114*bb;
+    }
+    const dark=minFilter2D(mn,W,H,7);
+    const count=Math.max(1,Math.floor(n/1000));
+    const ids=Array.from({length:n},(_,i)=>i).sort((a,b)=>dark[b]-dark[a]).slice(0,count);
+    let Ar=0,Ag=0,Ab=0;
+    for(const p of ids){Ar+=r[p];Ag+=g[p];Ab+=b[p];}
+    Ar=Math.max(.05,Ar/ids.length);Ag=Math.max(.05,Ag/ids.length);Ab=Math.max(.05,Ab/ids.length);
+    const normMin=new Float32Array(n);
+    for(let p=0;p<n;p++)normMin[p]=Math.min(r[p]/Ar,g[p]/Ag,b[p]/Ab);
+    const dcNorm=minFilter2D(normMin,W,H,7),rawT=new Float32Array(n);
+    for(let p=0;p<n;p++)rawT[p]=Math.max(.02,Math.min(1,1-.95*dcNorm[p]));
+
+    // Guided refinement, matching the original EDN-GTM preprocessing at reduced resolution.
+    const rad=Math.max(6,Math.round(Math.min(W,H)*.055)),eps=.0001;
+    const i2=new Float32Array(n),it=new Float32Array(n);
+    for(let p=0;p<n;p++){i2[p]=gray[p]*gray[p];it[p]=gray[p]*rawT[p];}
+    const mI=boxMean(gray,W,H,rad),mT=boxMean(rawT,W,H,rad),mII=boxMean(i2,W,H,rad),mIT=boxMean(it,W,H,rad);
+    const aa=new Float32Array(n),bbv=new Float32Array(n);
+    for(let p=0;p<n;p++){
+      const variance=Math.max(0,mII[p]-mI[p]*mI[p]);
+      aa[p]=(mIT[p]-mI[p]*mT[p])/(variance+eps);
+      bbv[p]=mT[p]-aa[p]*mI[p];
+    }
+    const mA=boxMean(aa,W,H,rad),mB=boxMean(bbv,W,H,rad);
+    for(let p=0;p<n;p++){
+      const tr=Math.max(0,Math.min(1,mA[p]*gray[p]+mB[p]));
+      const i=p*4;
+      input[i]=(d[i]-127.5)/127.5;
+      input[i+1]=(d[i+1]-127.5)/127.5;
+      input[i+2]=(d[i+2]-127.5)/127.5;
+      input[i+3]=2*(tr-.5);
     }
     return input;
+  }
+  function drawForAI(c,src,w,h,W,H,portrait){
+    c.save();
+    c.clearRect(0,0,W,H);
+    const sw=src.videoWidth||src.naturalWidth||src.width||w;
+    const sh=src.videoHeight||src.naturalHeight||src.height||h;
+    let sx=0,sy=0,cw=sw,ch=sh;
+    if(sourceMode==='live'&&src===video&&digitalZoom>1.001){
+      cw=sw/digitalZoom;ch=sh/digitalZoom;sx=(sw-cw)/2;sy=(sh-ch)/2;
+    }
+    if(portrait){
+      c.translate(W,0);c.rotate(Math.PI/2);
+      c.drawImage(src,sx,sy,cw,ch,0,0,H,W);
+    }else c.drawImage(src,sx,sy,cw,ch,0,0,W,H);
+    c.restore();
   }
   async function renderAI(kind,src,w,h){
     const sess=await getSession(kind),[H,W]=modelCfg[kind].size;
     const tmp=document.createElement('canvas');tmp.width=W;tmp.height=H;
-    const c=tmp.getContext('2d',{willReadFrequently:true});c.drawImage(src,0,0,W,H);
+    const c=tmp.getContext('2d',{willReadFrequently:true});
+    const portrait=h>w;
+    drawForAI(c,src,w,h,W,H,portrait);
     const d=c.getImageData(0,0,W,H).data;
     if(kind==='edn'){
       const input=buildEdnInput(d,H,W);
       const x=tf.tensor4d(input,[1,H,W,4],'float32');
-      let y=null;
+      let result=null,tensor=null;
       try{
-        const raw=await sess.executeAsync(x);
-        y=Array.isArray(raw)?raw[0]:raw;
-        const o=await y.data();
+        result=await sess.executeAsync(x);
+        tensor=Array.isArray(result)?result[0]:result;
+        const o=await tensor.data();
         const outIm=c.createImageData(W,H);
-        let maxSample=0;
-        for(let p=0;p<Math.min(H*W,2048);p++)maxSample=Math.max(maxSample,Math.abs(o[p*3]||0),Math.abs(o[p*3+1]||0),Math.abs(o[p*3+2]||0));
-        const scale=maxSample<=1.5?255:1;
         for(let p=0;p<H*W;p++){
-          outIm.data[p*4]=Math.max(0,Math.min(255,o[p*3]*scale));
-          outIm.data[p*4+1]=Math.max(0,Math.min(255,o[p*3+1]*scale));
-          outIm.data[p*4+2]=Math.max(0,Math.min(255,o[p*3+2]*scale));
+          // Official EDN-GTM deprocess_image(): output * 127.5 + 127.5.
+          outIm.data[p*4]=Math.max(0,Math.min(255,o[p*3]*127.5+127.5));
+          outIm.data[p*4+1]=Math.max(0,Math.min(255,o[p*3+1]*127.5+127.5));
+          outIm.data[p*4+2]=Math.max(0,Math.min(255,o[p*3+2]*127.5+127.5));
           outIm.data[p*4+3]=255;
         }
         c.putImageData(outIm,0,0);
-        return tmp;
+        if(!portrait)return tmp;
+        const rotated=document.createElement('canvas');rotated.width=H;rotated.height=W;
+        const rc=rotated.getContext('2d');rc.translate(0,W);rc.rotate(-Math.PI/2);rc.drawImage(tmp,0,0);
+        return rotated;
       }finally{
         x.dispose();
-        if(Array.isArray(y))y.forEach(t=>t?.dispose?.()); else y?.dispose?.();
+        if(Array.isArray(result))result.forEach(t=>t?.dispose?.()); else tensor?.dispose?.();
       }
     }else{
       const input=new Float32Array(3*H*W);
@@ -299,7 +375,11 @@ void main(){
         outIm.data[p*4+2]=255*Math.max(0,Math.min(1,o[2*H*W+p]));
         outIm.data[p*4+3]=255;
       }
-      c.putImageData(outIm,0,0);return tmp;
+      c.putImageData(outIm,0,0);
+      if(!portrait)return tmp;
+      const rotated=document.createElement('canvas');rotated.width=H;rotated.height=W;
+      const rc=rotated.getContext('2d');rc.translate(0,W);rc.rotate(-Math.PI/2);rc.drawImage(tmp,0,0);
+      return rotated;
     }
   }
 
@@ -365,7 +445,13 @@ void main(){
         try{const p=await renderAI(a,src,w,h);compose(src,p,w,h);recordBench(a,performance.now()-t0);}
         finally{aiBusy=false;}
       }else if(a==='hybrid'){
-        throw Error('AI Hybrid не встановлено');
+        if(aiBusy)return;aiBusy=true;
+        try{
+          const ai=await renderAI('edn',src,w,h);
+          const p=renderWebL(ai,ai.width,ai.height,Math.min(.58,Math.max(.22,s*.62)));
+          compose(src,p,w,h);
+          recordBench('edn',performance.now()-t0);
+        }finally{aiBusy=false;}
       }
       const ms=performance.now()-t0;latEl.textContent=ms.toFixed(1)+' ms';
       if(outputStat)outputStat.textContent=out.width+'×'+out.height;
