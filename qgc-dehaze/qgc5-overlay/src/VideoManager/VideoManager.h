@@ -53,6 +53,7 @@ class VideoManager : public QObject
     Q_PROPERTY(QString  dehazeRunMode           READ dehazeRunMode       WRITE setDehazeRunMode  NOTIFY dehazeChanged)
     Q_PROPERTY(QString  dehazeStrength          READ dehazeStrength      WRITE setDehazeStrength NOTIFY dehazeChanged)
     Q_PROPERTY(QString  dehazeAlgorithm         READ dehazeAlgorithm     WRITE setDehazeAlgorithm NOTIFY dehazeChanged)
+    Q_PROPERTY(bool     dehazePanelOpen         READ dehazePanelOpen     WRITE setDehazePanelOpen NOTIFY dehazeChanged)
     Q_PROPERTY(double   dehazeFps               READ dehazeFps                                  NOTIFY dehazePerformanceChanged)
     Q_PROPERTY(double   dehazeFrameMs           READ dehazeFrameMs                              NOTIFY dehazePerformanceChanged)
 
@@ -90,11 +91,13 @@ public:
     QString dehazeRunMode() const { return _dehazeRunMode; }
     QString dehazeStrength() const { return _dehazeStrength; }
     QString dehazeAlgorithm() const { return _dehazeAlgorithm; }
+    bool dehazePanelOpen() const { return _dehazePanelOpen; }
     double dehazeFps() const { return _dehazeFps; }
     double dehazeFrameMs() const { return _dehazeFrameMs; }
     void setDehazeRunMode(const QString &value) { if (_dehazeRunMode != value) { _dehazeRunMode = value; emit dehazeChanged(); } }
     void setDehazeStrength(const QString &value) { if (_dehazeStrength != value) { _dehazeStrength = value; emit dehazeChanged(); } }
     void setDehazeAlgorithm(const QString &value) { if (_dehazeAlgorithm != value) { _dehazeAlgorithm = value; emit dehazeChanged(); } }
+    void setDehazePanelOpen(bool value) { if (_dehazePanelOpen != value) { _dehazePanelOpen = value; emit dehazeChanged(); } }
     void setfullScreen(bool on);
     static bool gstreamerEnabled();
     static bool qtmultimediaEnabled();
@@ -153,6 +156,7 @@ private:
     QString _dehazeRunMode = QStringLiteral("OFF");
     QString _dehazeStrength = QStringLiteral("MEDIUM");
     QString _dehazeAlgorithm = QStringLiteral("ADAPTIVE");
+    bool _dehazePanelOpen = false;
     double _dehazeFps = 0.0;
     double _dehazeFrameMs = 0.0;
     QElapsedTimer _dehazePerfTimer;
