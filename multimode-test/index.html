@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Digital Dehazing — 9-window test</title>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#0f1318;color:#eef3f7;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:#131922eF;backdrop-filter:blur(12px);padding:12px 14px;border-bottom:1px solid #2a3440}
+h1{font-size:18px;margin:0 0 8px}.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button,.file,.ctl{border:1px solid #3a4654;background:#202833;color:#fff;border-radius:9px;padding:9px 12px;font-size:14px}
+.file input{display:none}.status{font-size:12px;color:#aab6c3}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:6px}
+.card{position:relative;background:#090c10;border:1px solid #27313c;border-radius:9px;overflow:hidden}.card canvas{display:block;width:100%;aspect-ratio:16/9;background:#000}
+.label{position:absolute;left:6px;top:6px;background:#000b;border:1px solid #ffffff24;border-radius:6px;padding:4px 7px;font-size:11px;font-weight:700}
+.meta{position:absolute;right:6px;top:6px;background:#000b;border-radius:6px;padding:4px 6px;font-size:10px;color:#cbd5df}
+.footer{padding:10px 14px 18px;color:#aeb8c2;font-size:12px;line-height:1.45}.warn{color:#ffd37a}
+@media(max-width:760px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:470px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+<h1>Digital Dehazing — 9 режимів одночасно</h1>
+<div class="controls">
+<label class="file">Відкрити відео<input id="file" type="file" accept="video/*"></label>
+<button id="play">▶︎ / ❚❚</button>
+<button id="back">−10 с</button>
+<button id="fwd">+10 с</button>
+<label class="ctl">Сила <input id="strength" type="range" min="0" max="100" value="70"></label>
+<span class="status" id="status">Оберіть локальне відео</span>
+</div>
+</header>
+
+<video id="video" playsinline muted style="display:none"></video>
+<canvas id="source" width="480" height="270" style="display:none"></canvas>
+<div class="grid" id="grid"></div>
+<div class="footer">
+Сітка: Original, LIVE DCP, PHOTO DCP, FAST DCP preview, CAP preview, CLAHE-L, Retinex, Adaptive+Detail, AUTO.
+<span class="warn">FAST/CAP у цьому браузерному стенді — JS-перенесення легких профілів для візуального відбору; фінальна швидкість і точність Android перевіряються окремо native APK.</span>
+</div>
+
+<script src="../classic-dcp.js"></script>
+<script>
+const video=document.getElementById('video'), source=document.getElementById('source'), sctx=source.getContext('2d',{willReadFrequently:true});
+const grid=document.getElementById('grid'), statusEl=document.getElementById('status'), strengthEl=document.getElementById('strength');
+const W=480,H=270,FPS_LIMIT=10; let last=0, running=false;
+const liveStates=[...Array(9)].map(()=>window.createDcpLiveState?window.createDcpLiveState():null);
+
+const modes=[
+ ['ORIGINAL','original'],
+ ['LIVE DCP','live'],
+ ['PHOTO DCP','photo'],
+ ['FAST DCP','fast'],
+ ['CAP','cap'],
+ ['CLAHE-L','clahe'],
+ ['RETINEX','retinex'],
+ ['ADAPTIVE+DETAIL','adaptive'],
+ ['AUTO','auto']
+];
+const cards=modes.map(([label,id],i)=>{
+ const c=document.createElement('div'); c.className='card';
+ const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+ const lab=document.createElement('div'); lab.className='label'; lab.textContent=label;
+ const meta=document.createElement('div'); meta.className='meta'; meta.textContent='— ms';
+ c.append(cv,lab,meta); grid.appendChild(c);
+ return {cv,ctx:cv.getContext('2d'),meta,id,i};
+});
+function clamp(v,a=0,b=255){return v<a?a:v>b?b:v}
+function copyData(src){return new Uint8ClampedArray(src)}
+function toImageData(arr){return new ImageData(arr,W,H)}
+
+function simpleContrast(src,amount){
+ const out=copyData(src), f=(259*(amount+255))/(255*(259-amount));
+ for(let i=0;i<out.length;i+=4){out[i]=clamp(f*(out[i]-128)+128);out[i+1]=clamp(f*(out[i+1]-128)+128);out[i+2]=clamp(f*(out[i+2]-128)+128)}
+ return out;
+}
+function clahePreview(src){
+ // Lightweight luminance-local contrast preview; avoids changing hue.
+ const out=copyData(src); const bins=64,hist=new Uint32Array(bins);
+ for(let i=0;i<src.length;i+=4){const y=.299*src[i]+.587*src[i+1]+.114*src[i+2];hist[Math.min(bins-1,y*bins/256|0)]++}
+ const clip=Math.max(1,(W*H/bins)*2.0); let excess=0;
+ for(let b=0;b<bins;b++){if(hist[b]>clip){excess+=hist[b]-clip;hist[b]=clip}}
+ const add=excess/bins;for(let b=0;b<bins;b++)hist[b]+=add;
+ const cdf=new Float32Array(bins);let acc=0;for(let b=0;b<bins;b++){acc+=hist[b];cdf[b]=acc/(W*H)}
+ for(let i=0;i<src.length;i+=4){const y=.299*src[i]+.587*src[i+1]+.114*src[i+2], ny=255*cdf[Math.min(bins-1,y*bins/256|0)], gain=ny/Math.max(12,y);out[i]=clamp(src[i]*gain);out[i+1]=clamp(src[i+1]*gain);out[i+2]=clamp(src[i+2]*gain)}
+ return out;
+}
+function retinexPreview(src){
+ const tmp=document.createElement('canvas');tmp.width=W;tmp.height=H;const t=tmp.getContext('2d');t.putImageData(toImageData(src),0,0);t.filter='blur(14px)';t.drawImage(tmp,0,0);
+ const blur=t.getImageData(0,0,W,H).data,out=copyData(src);
+ for(let i=0;i<src.length;i+=4){for(let c=0;c<3;c++){const r=Math.log(src[i+c]+1)-Math.log(blur[i+c]+1);out[i+c]=clamp(128+r*72)}}
+ return blend(src,out,.55);
+}
+function blend(a,b,k){const o=copyData(a);for(let i=0;i<o.length;i+=4){o[i]=a[i]+(b[i]-a[i])*k;o[i+1]=a[i+1]+(b[i+1]-a[i+1])*k;o[i+2]=a[i+2]+(b[i+2]-a[i+2])*k}return o}
+function fastPreview(src,strength){
+ if(!window.dehazeLiveDCP)return clahePreview(src);
+ const st=liveStates[3], p=window.dehazeLiveDCP(src,W,H,{strength:Math.min(72,strength),recomputeEvery:4},st);
+ return blend(src,p,.72);
+}
+function capPreview(src,strength){
+ // CAP-like value/saturation depth proxy: more recovery in bright low-saturation haze.
+ const out=copyData(src), k=(strength/100)*.55;
+ for(let i=0;i<src.length;i+=4){
+   const r=src[i],g=src[i+1],b=src[i+2],hi=Math.max(r,g,b),lo=Math.min(r,g,b),sat=hi?((hi-lo)/hi):0;
+   const depth=Math.max(0,.121779+.959710*(hi/255)-.780245*sat), gain=1+k*depth*1.35;
+   const y=.299*r+.587*g+.114*b;
+   out[i]=clamp(y+(r-y)*1.05 + (r-190)*.22*depth*gain);
+   out[i+1]=clamp(y+(g-y)*1.05 + (g-190)*.22*depth*gain);
+   out[i+2]=clamp(y+(b-y)*1.05 + (b-190)*.22*depth*gain);
+ }
+ return out;
+}
+function adaptive(src,strength){
+ const base=window.dehazeLiveDCP?window.dehazeLiveDCP(src,W,H,{strength:Math.min(82,strength),recomputeEvery:3},liveStates[7]):src;
+ const c=clahePreview(base); const d=simpleContrast(c,18);
+ return blend(src,d,.72);
+}
+function hazeEstimate(src){
+ let sum=0,sum2=0,sat=0,n=0;
+ for(let i=0;i<src.length;i+=16){const r=src[i],g=src[i+1],b=src[i+2],y=.299*r+.587*g+.114*b,hi=Math.max(r,g,b),lo=Math.min(r,g,b);sum+=y;sum2+=y*y;sat+=hi?((hi-lo)/hi):0;n++}
+ const mean=sum/n,sd=Math.sqrt(Math.max(0,sum2/n-mean*mean)),s=sat/n;
+ return clamp((55-sd)*1.2+(0.35-s)*80,10,95);
+}
+function processMode(id,src,strength){
+ if(id==='original')return src;
+ if(id==='live')return window.dehazeLiveDCP(src,W,H,{strength,recomputeEvery:3},liveStates[1]);
+ if(id==='photo')return window.dehazeStrongDCP(src,W,H,{strength,maxSide:480});
+ if(id==='fast')return fastPreview(src,strength);
+ if(id==='cap')return capPreview(src,strength);
+ if(id==='clahe')return clahePreview(src);
+ if(id==='retinex')return retinexPreview(src);
+ if(id==='adaptive')return adaptive(src,strength);
+ if(id==='auto'){const autoS=Math.round(hazeEstimate(src));return adaptive(src,autoS)}
+ return src;
+}
+function render(ts){
+ if(!running)return;
+ if(video.readyState>=2 && ts-last>1000/FPS_LIMIT){
+  last=ts;sctx.drawImage(video,0,0,W,H);const base=sctx.getImageData(0,0,W,H).data, strength=+strengthEl.value;
+  for(const card of cards){const t0=performance.now();let out;
+   try{out=processMode(card.id,base,strength)}catch(e){out=base;console.error(card.id,e)}
+   card.ctx.putImageData(toImageData(out),0,0);card.meta.textContent=(performance.now()-t0).toFixed(0)+' ms';
+  }
+  statusEl.textContent=video.currentTime.toFixed(1)+' / '+(video.duration||0).toFixed(1)+' с · '+W+'×'+H+' preview';
+ }
+ requestAnimationFrame(render);
+}
+document.getElementById('file').onchange=e=>{const f=e.target.files?.[0];if(!f)return;video.src=URL.createObjectURL(f);video.onloadedmetadata=()=>{statusEl.textContent=f.name+' · '+video.videoWidth+'×'+video.videoHeight;video.play();running=true;requestAnimationFrame(render)}}
+document.getElementById('play').onclick=()=>{if(video.paused){video.play();running=true;requestAnimationFrame(render)}else video.pause()}
+document.getElementById('back').onclick=()=>video.currentTime=Math.max(0,video.currentTime-10)
+document.getElementById('fwd').onclick=()=>video.currentTime=Math.min(video.duration||1e9,video.currentTime+10)
+video.onended=()=>running=false;
+</script>
+</body></html>
