@@ -34,23 +34,73 @@ jobs:
           cp -a lab/qgc-dehaze/qgc5-overlay/. qgc/
           mkdir -p artifacts
 
-      - name: QGC common setup
-        uses: ./qgc/.github/actions/common
+      - name: Setup CMake
+        uses: lukka/get-cmake@latest
 
-      - name: Install Qt Android
-        uses: ./qgc/.github/actions/qt-android
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          host: linux
-          arch: linux_gcc_64
+          python-version: "3.13"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 12266719
+          packages: "platform-tools platforms;android-35 build-tools;35.0.0"
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup_ndk
+        with:
+          ndk-version: r26b
+          add-to-path: false
+
+      - name: Export NDK
+        shell: bash
+        run: |
+          echo "ANDROID_NDK_ROOT=${{ steps.setup_ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=${{ steps.setup_ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK=${{ steps.setup_ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
+
+      - name: Install Qt host
+        uses: jurplel/install-qt-action@v4
+        with:
           version: "6.8.3"
-          abis: "arm64-v8a"
-          cpm-modules: ${{ runner.temp }}/shadow_build_dir/cpm_modules
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          dir: ${{ runner.temp }}
+          modules: "qtcharts qtlocation qtpositioning qtspeech qt5compat qtmultimedia qtserialport qtimageformats qtshadertools qtconnectivity qtquick3d qtsensors"
+          setup-python: false
+          cache: true
+
+      - name: Save Qt host path
+        shell: bash
+        run: echo "QT_HOST_ROOT=${QT_ROOT_DIR}" >> "$GITHUB_ENV"
+
+      - name: Install Qt Android arm64
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8.3"
+          host: linux
+          target: android
+          arch: android_arm64_v8a
+          dir: ${{ runner.temp }}
+          modules: "qtcharts qtlocation qtpositioning qtspeech qt5compat qtmultimedia qtserialport qtimageformats qtshadertools qtconnectivity qtquick3d qtsensors"
+          setup-python: false
+          cache: true
 
       - name: Configure
         shell: bash
         run: |
           mkdir -p "${{ runner.temp }}/qgc5-build"
-          "${QT_ROOT_DIR}/bin/qt-cmake" -S "${GITHUB_WORKSPACE}/qgc" -B "${{ runner.temp }}/qgc5-build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_WARN_DEPRECATED=FALSE -DQT_ANDROID_ABIS=arm64-v8a -DQT_ANDROID_BUILD_ALL_ABIS=OFF -DQT_HOST_PATH="${QT_ROOT_DIR}/../gcc_64" -DQT_ANDROID_SIGN_APK=OFF -DQGC_STABLE_BUILD=OFF
+          "${QT_ROOT_DIR}/bin/qt-cmake" -S "${GITHUB_WORKSPACE}/qgc" -B "${{ runner.temp }}/qgc5-build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_WARN_DEPRECATED=FALSE -DQT_ANDROID_ABIS=arm64-v8a -DQT_ANDROID_BUILD_ALL_ABIS=OFF -DQT_HOST_PATH="${QT_HOST_ROOT}" -DQT_ANDROID_SIGN_APK=OFF -DQGC_STABLE_BUILD=OFF
 
       - name: Build
         shell: bash
