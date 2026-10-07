@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      QT_VERSION: "6.8.3"
+      QT_VERSION: "6.6.3"
       QT_ANDROID_ABIS: "arm64-v8a"
 
     steps:
@@ -58,7 +58,7 @@ jobs:
         uses: nttld/setup-ndk@v1
         id: setup_ndk
         with:
-          ndk-version: r26b
+          ndk-version: r25b
           add-to-path: false
 
       - name: Export NDK
@@ -71,10 +71,10 @@ jobs:
       - name: Install Qt host
         uses: jurplel/install-qt-action@v4
         with:
-          version: "6.8.3"
+          version: "6.6.3"
           host: linux
           target: desktop
-          arch: linux_gcc_64
+          arch: gcc_64
           dir: ${{ runner.temp }}
           modules: "qtcharts qtlocation qtpositioning qtspeech qt5compat qtmultimedia qtserialport qtimageformats qtshadertools qtconnectivity qtquick3d qtsensors"
           setup-python: false
@@ -87,7 +87,7 @@ jobs:
       - name: Install Qt Android arm64
         uses: jurplel/install-qt-action@v4
         with:
-          version: "6.8.3"
+          version: "6.6.3"
           host: linux
           target: android
           arch: android_arm64_v8a
@@ -100,7 +100,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p "${{ runner.temp }}/qgc5-build"
-          "${QT_ROOT_DIR}/bin/qt-cmake" -S "${GITHUB_WORKSPACE}/qgc" -B "${{ runner.temp }}/qgc5-build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_WARN_DEPRECATED=FALSE -DQT_ANDROID_ABIS=arm64-v8a -DQT_ANDROID_BUILD_ALL_ABIS=OFF -DQT_HOST_PATH="${QT_HOST_ROOT}" -DQT_ANDROID_SIGN_APK=OFF -DQGC_STABLE_BUILD=OFF
+          "${QT_ROOT_DIR}/bin/qt-cmake" -S "${GITHUB_WORKSPACE}/qgc" -B "${{ runner.temp }}/qgc5-build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_WARN_DEPRECATED=FALSE -DQT_ANDROID_ABIS=arm64-v8a -DQT_ANDROID_BUILD_ALL_ABIS=OFF -DQT_HOST_PATH="${QT_HOST_ROOT}" -DQT_ANDROID_SIGN_APK=OFF -DQGC_ENABLE_HERELINK=ON -DQGC_STABLE_BUILD=OFF
 
       - name: Build
         shell: bash
