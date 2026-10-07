@@ -1,33 +1,25 @@
-name: Build QGC 5.0.8 Dehaze Lab Android
+name: QGC5 Dehaze Android
 
 on:
   push:
-    branches: [ qgc-dehaze-lab ]
-    paths:
-      - 'qgc-dehaze/qgc5-overlay/**'
-      - '.github/workflows/build-qgc5-dehaze.yml'
   workflow_dispatch:
-
-permissions:
-  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      QT_VERSION: 6.8.3
-      QT_ANDROID_ABIS: arm64-v8a
-      BUILD_DIR: ${{ runner.temp }}/qgc5-build
+      QT_VERSION: "6.8.3"
+      QT_ANDROID_ABIS: "arm64-v8a"
 
     steps:
-      - name: Checkout Dehaze Lab
+      - name: Checkout lab
         uses: actions/checkout@v4
         with:
           ref: qgc-dehaze-lab
           path: lab
 
-      - name: Checkout QGroundControl 5.0.8
+      - name: Checkout QGC
         uses: actions/checkout@v4
         with:
           repository: mavlink/qgroundcontrol
@@ -36,70 +28,46 @@ jobs:
           fetch-depth: 1
           path: qgc
 
-      - name: Apply Dehaze overlay
+      - name: Apply overlay
         shell: bash
         run: |
           cp -a lab/qgc-dehaze/qgc5-overlay/. qgc/
           mkdir -p artifacts
-          printf "QGC 5.0.8 Dehaze Lab\nTarget: Samsung Galaxy Tab S10 FE\nABI: arm64-v8a\nOffline: yes\n" > artifacts/BUILD-INFO.txt
 
       - name: QGC common setup
         uses: ./qgc/.github/actions/common
 
-      - name: Free disk space
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: false
-          android: false
-          large-packages: false
-
-      - name: Install Qt for Android
+      - name: Install Qt Android
         uses: ./qgc/.github/actions/qt-android
         with:
           host: linux
           arch: linux_gcc_64
-          version: ${{ env.QT_VERSION }}
-          abis: ${{ env.QT_ANDROID_ABIS }}
+          version: "6.8.3"
+          abis: "arm64-v8a"
           cpm-modules: ${{ runner.temp }}/shadow_build_dir/cpm_modules
 
       - name: Configure
         shell: bash
         run: |
-          mkdir -p "$BUILD_DIR"
-          "${QT_ROOT_DIR}/bin/qt-cmake" -S "$GITHUB_WORKSPACE/qgc" -B "$BUILD_DIR" -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_WARN_DEPRECATED=FALSE \
-            -DQT_ANDROID_ABIS="${QT_ANDROID_ABIS}" \
-            -DQT_ANDROID_BUILD_ALL_ABIS=OFF \
-            -DQT_HOST_PATH="${QT_ROOT_DIR}/../gcc_64" \
-            -DQT_ANDROID_SIGN_APK=OFF \
-            -DQGC_STABLE_BUILD=OFF
+          mkdir -p "${{ runner.temp }}/qgc5-build"
+          "${QT_ROOT_DIR}/bin/qt-cmake" -S "${GITHUB_WORKSPACE}/qgc" -B "${{ runner.temp }}/qgc5-build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_WARN_DEPRECATED=FALSE -DQT_ANDROID_ABIS=arm64-v8a -DQT_ANDROID_BUILD_ALL_ABIS=OFF -DQT_HOST_PATH="${QT_ROOT_DIR}/../gcc_64" -DQT_ANDROID_SIGN_APK=OFF -DQGC_STABLE_BUILD=OFF
 
-      - name: Build APK
+      - name: Build
         shell: bash
         run: |
-          cmake --build "$BUILD_DIR" --target all --config Release
-          APK="$(find "$BUILD_DIR" -type f -name '*.apk' | head -n 1)"
+          cmake --build "${{ runner.temp }}/qgc5-build" --target all --config Release
+          find "${{ runner.temp }}/qgc5-build" -type f -name "*.apk" -print
+          APK=$(find "${{ runner.temp }}/qgc5-build" -type f -name "*.apk" | head -n 1)
           test -n "$APK"
           cp "$APK" artifacts/QGC-5.0.8-Dehaze-Lab-Samsung-FE-arm64.apk
 
-      - name: Package patched source
+      - name: Package source overlay
         if: always()
         shell: bash
         run: |
-          python3 - <<'PY'
-          import os, zipfile
-          root='qgc'
-          out='artifacts/QGC-5.0.8-Dehaze-Lab-PATCHED-SOURCE.zip'
-          os.makedirs('artifacts', exist_ok=True)
-          with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
-              for dp, dns, fns in os.walk(root):
-                  dns[:] = [d for d in dns if d not in {'.git','build'}]
-                  for fn in fns:
-                      p=os.path.join(dp,fn)
-                      if '/.git/' in p: continue
-                      z.write(p, os.path.relpath(p, root))
-          PY
+          cd lab
+          zip -qr ../artifacts/QGC-5.0.8-Dehaze-Lab-SOURCE-OVERLAY.zip qgc-dehaze/qgc5-overlay
+          cd ..
 
       - name: Upload APK
         if: success()
@@ -107,16 +75,10 @@ jobs:
         with:
           name: QGC-5.0.8-Dehaze-Lab-APK
           path: artifacts/QGC-5.0.8-Dehaze-Lab-Samsung-FE-arm64.apk
-          if-no-files-found: error
-          retention-days: 14
 
-      - name: Upload patched source
+      - name: Upload source
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: QGC-5.0.8-Dehaze-Lab-Source
-          path: |
-            artifacts/QGC-5.0.8-Dehaze-Lab-PATCHED-SOURCE.zip
-            artifacts/BUILD-INFO.txt
-          if-no-files-found: warn
-          retention-days: 14
+          path: artifacts/QGC-5.0.8-Dehaze-Lab-SOURCE-OVERLAY.zip
