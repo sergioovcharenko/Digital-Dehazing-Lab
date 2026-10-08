@@ -10,7 +10,7 @@ jobs:
     timeout-minutes: 120
     env:
       QT_VERSION: "5.15.2"
-      BUILD_DIR: ${{ runner.temp }}/qgc4-build
+      BUILD_DIR: /tmp/qgc4-build
 
     steps:
       - name: Checkout lab
