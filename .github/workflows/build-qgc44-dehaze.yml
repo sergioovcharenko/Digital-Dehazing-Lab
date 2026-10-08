@@ -62,14 +62,14 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME"
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --version
 
-      - name: Install Android 33 tools
+      - name: Install Android SDK platform 33
         shell: bash
         run: |
-          yes | sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
-          for d in "$ANDROID_HOME"/platforms/android-*; do
-            [ -e "$d" ] || continue
-            [ "$(basename "$d")" = "android-33" ] || rm -rf "$d"
-          done
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$SDKMANAGER" --install "platforms;android-33" "build-tools;33.0.2" "platform-tools"
+          test -s "$ANDROID_HOME/platforms/android-33/android.jar"
+          test -x "$ANDROID_HOME/build-tools/33.0.2/apksigner"
+          echo "Verified Android SDK platform 33"
 
       - name: Setup Android NDK r21e
         uses: nttld/setup-ndk@v1
