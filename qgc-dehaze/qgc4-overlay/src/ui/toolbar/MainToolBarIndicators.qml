@@ -60,56 +60,7 @@ Row {
         }
     }
 
-    Row {
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        spacing: ScreenTools.defaultFontPixelWidth * 0.5
-        visible: _activeVehicle
-
-        Rectangle {
-            height: parent.height
-            width: ScreenTools.defaultFontPixelWidth * 13
-            radius: ScreenTools.defaultFontPixelWidth * 0.6
-            color: QGroundControl.videoManager.dehazeRunMode !== "OFF" ? "#5535D06F" : "#334A4A4A"
-            border.width: 1
-            border.color: QGroundControl.videoManager.dehazeRunMode !== "OFF" ? "#35D06F" : "#A0A0A0"
-
-            Text {
-                anchors.centerIn: parent
-                text: "DEHAZING"
-                color: QGroundControl.videoManager.dehazeRunMode !== "OFF" ? "#35D06F" : "white"
-                font.bold: true
-                font.pixelSize: ScreenTools.smallFontPointSize * 1.45
-            }
-            MouseArea {
-                anchors.fill: parent
-                onClicked: {
-                    if (QGroundControl.videoManager.dehazeRunMode === "OFF") {
-                        QGroundControl.videoManager.dehazeRunMode = "AUTO"
-                        QGroundControl.videoManager.dehazePanelOpen = true
-                    } else {
-                        QGroundControl.videoManager.dehazeRunMode = "OFF"
-                        QGroundControl.videoManager.dehazePanelOpen = false
-                    }
-                }
-            }
-        }
-
-        Rectangle {
-            visible: QGroundControl.videoManager.dehazeRunMode !== "OFF"
-            height: parent.height
-            width: parent.height
-            radius: ScreenTools.defaultFontPixelWidth * 0.6
-            color: QGroundControl.videoManager.dehazePanelOpen ? "#5535D06F" : "#334A4A4A"
-            border.width: 1
-            border.color: QGroundControl.videoManager.dehazePanelOpen ? "#35D06F" : "#A0A0A0"
-            Text { anchors.centerIn: parent; text: "⚙"; color: "white"; font.pixelSize: ScreenTools.defaultFontPointSize * 1.6 }
-            MouseArea {
-                anchors.fill: parent
-                onClicked: QGroundControl.videoManager.dehazePanelOpen = !QGroundControl.videoManager.dehazePanelOpen
-            }
-        }
-    }
+    DehazeToolbarControl { }
 
     Repeater {
         model: _activeVehicle ? _activeVehicle.modeIndicators : []
