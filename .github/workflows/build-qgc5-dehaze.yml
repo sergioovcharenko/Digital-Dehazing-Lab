@@ -96,6 +96,17 @@ jobs:
           setup-python: false
           cache: true
 
+      - name: Create test signing key
+        shell: bash
+        run: |
+          keytool -genkeypair -v \
+            -keystore "${{ runner.temp }}/dehaze-lab.keystore" \
+            -storepass dehazelab2026 \
+            -keypass dehazelab2026 \
+            -alias dehazelab \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=QGC Dehaze Lab, OU=Lab, O=Dehaze Lab, L=Kyiv, C=UA"
+
       - name: Configure
         shell: bash
         run: |
@@ -109,7 +120,25 @@ jobs:
           find "${{ runner.temp }}/qgc5-build" -type f -name "*.apk" -print
           APK=$(find "${{ runner.temp }}/qgc5-build" -type f -name "*.apk" | head -n 1)
           test -n "$APK"
-          cp "$APK" artifacts/QGC-5.0.8-Dehaze-Lab-Samsung-FE-arm64.apk
+          cp "$APK" artifacts/QGC-5.0.8-Dehaze-Lab-UNSIGNED.apk
+
+      - name: Sign and verify APK
+        shell: bash
+        run: |
+          BUILD_TOOLS="$(find "${ANDROID_HOME}/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          APKSIGNER="${BUILD_TOOLS}/apksigner"
+          AAPT="${BUILD_TOOLS}/aapt"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" sign \
+            --ks "${{ runner.temp }}/dehaze-lab.keystore" \
+            --ks-key-alias dehazelab \
+            --ks-pass pass:dehazelab2026 \
+            --key-pass pass:dehazelab2026 \
+            --out artifacts/QGC-5.0.8-Dehaze-Lab-Samsung-FE-arm64.apk \
+            artifacts/QGC-5.0.8-Dehaze-Lab-UNSIGNED.apk
+          "$APKSIGNER" verify --verbose --print-certs artifacts/QGC-5.0.8-Dehaze-Lab-Samsung-FE-arm64.apk
+          "$AAPT" dump badging artifacts/QGC-5.0.8-Dehaze-Lab-Samsung-FE-arm64.apk | head -n 5
+          "$AAPT" dump badging artifacts/QGC-5.0.8-Dehaze-Lab-Samsung-FE-arm64.apk | grep -q "package: name='org.mavlink.qgroundcontrol.dehazelab'"
 
       - name: Package source overlay
         if: always()
