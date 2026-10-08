@@ -1,0 +1,84 @@
+name: QGC4 Dehaze Android
+on:
+  push:
+    branches: [ qgc-dehaze-lab ]
+    paths:
+      - 'qgc-dehaze/qgc4-overlay/**'
+      - '.github/workflows/build-qgc4-dehaze.yml'
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      SOURCE_DIR: ${{ github.workspace }}/qgc
+      BUILD_DIR: ${{ runner.temp }}/qgc4-build
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: qgc-dehaze-lab
+          path: lab
+      - uses: actions/checkout@v4
+        with:
+          repository: mavlink/qgroundcontrol
+          ref: v4.4.0
+          submodules: recursive
+          fetch-depth: 1
+          path: qgc
+      - name: Apply overlay
+        run: |
+          cp -a lab/qgc-dehaze/qgc4-overlay/. qgc/
+          mkdir -p artifacts
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "11"
+      - uses: android-actions/setup-android@v3
+      - name: Android packages
+        run: yes | sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+      - uses: nttld/setup-ndk@v1
+        id: ndk
+        with:
+          ndk-version: r21e
+          add-to-path: false
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: "5.15.2"
+          host: linux
+          target: android
+          dir: ${{ runner.temp }}
+          modules: "qtcharts"
+          setup-python: true
+      - name: Dependencies
+        run: sudo apt-get update && sudo apt-get install -y ccache libgl1-mesa-dev
+      - name: GStreamer
+        working-directory: qgc
+        run: |
+          wget -q https://gstreamer.freedesktop.org/data/pkg/android/1.18.6/gstreamer-1.0-android-universal-1.18.6.tar.xz
+          mkdir gstreamer-1.0-android-universal-1.18.6
+          tar xf gstreamer-1.0-android-universal-1.18.6.tar.xz -C gstreamer-1.0-android-universal-1.18.6
+      - name: Configure
+        env:
+          ANDROID_NDK_ROOT: ${{ steps.ndk.outputs.ndk-path }}
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+          ANDROID_NDK: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          mkdir -p "$BUILD_DIR"
+          cd "$BUILD_DIR"
+          qmake -r "$SOURCE_DIR/qgroundcontrol.pro" -spec android-clang CONFIG+=DailyBuild ANDROID_ABIS="arm64-v8a"
+      - name: Build
+        env:
+          ANDROID_NDK_ROOT: ${{ steps.ndk.outputs.ndk-path }}
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+          ANDROID_NDK: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          cd "$BUILD_DIR"
+          make -j2
+          find "$BUILD_DIR" -type f -name "*.apk" -print
+          APK="$(find "$BUILD_DIR" -type f -name "*.apk" | head -n 1)"
+          test -n "$APK"
+          cp "$APK" "${GITHUB_WORKSPACE}/artifacts/QGC-4.4.0-Dehaze-Lab-arm64.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: QGC-4.4.0-Dehaze-Lab-APK
+          path: artifacts/QGC-4.4.0-Dehaze-Lab-arm64.apk
