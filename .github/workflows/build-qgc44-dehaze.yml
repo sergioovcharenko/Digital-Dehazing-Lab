@@ -1,0 +1,141 @@
+name: QGC 4.4 Stable Dehaze Android
+
+on:
+  push:
+    branches:
+      - qgc-dehaze-lab
+    paths:
+      - 'qgc-dehaze/qgc4-overlay/**'
+      - '.github/workflows/build-qgc44-dehaze.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      QT_VERSION: "5.15.2"
+
+    steps:
+      - name: Checkout lab
+        uses: actions/checkout@v4
+        with:
+          ref: qgc-dehaze-lab
+          path: lab
+
+      - name: Checkout QGC 4.4.0
+        uses: actions/checkout@v4
+        with:
+          repository: mavlink/qgroundcontrol
+          ref: v4.4.0
+          submodules: recursive
+          fetch-depth: 1
+          path: qgc
+
+      - name: Apply 4.4 overlay
+        shell: bash
+        run: |
+          cp -a lab/qgc-dehaze/qgc4-overlay/. qgc/
+          mkdir -p artifacts
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "11"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 33 tools
+        shell: bash
+        run: |
+          yes | sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
+          for d in "$ANDROID_HOME"/platforms/android-*; do
+            [ -e "$d" ] || continue
+            [ "$(basename "$d")" = "android-33" ] || rm -rf "$d"
+          done
+
+      - name: Setup Android NDK r21e
+        uses: nttld/setup-ndk@v1
+        id: setup_ndk
+        with:
+          ndk-version: r21e
+          add-to-path: false
+
+      - name: Install Qt 5.15.2 Android
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "5.15.2"
+          host: linux
+          target: android
+          dir: ${{ runner.temp }}
+          modules: "qtcharts"
+          setup-python: true
+          cache: true
+
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ccache ninja-build wget xz-utils zip unzip
+
+      - name: Install GStreamer Android 1.18.6
+        working-directory: qgc
+        shell: bash
+        run: |
+          wget --quiet https://gstreamer.freedesktop.org/data/pkg/android/1.18.6/gstreamer-1.0-android-universal-1.18.6.tar.xz
+          mkdir -p gstreamer-1.0-android-universal-1.18.6
+          tar xf gstreamer-1.0-android-universal-1.18.6.tar.xz -C gstreamer-1.0-android-universal-1.18.6
+
+      - name: Build QGC 4.4 Stable arm64
+        shell: bash
+        env:
+          ANDROID_NDK_ROOT: ${{ steps.setup_ndk.outputs.ndk-path }}
+          ANDROID_NDK_HOME: ${{ steps.setup_ndk.outputs.ndk-path }}
+          ANDROID_NDK_LATEST_HOME: ${{ steps.setup_ndk.outputs.ndk-path }}
+          ANDROID_NDK: ${{ steps.setup_ndk.outputs.ndk-path }}
+        run: |
+          mkdir -p "${{ runner.temp }}/qgc44-build"
+          cd "${{ runner.temp }}/qgc44-build"
+          qmake -r "${GITHUB_WORKSPACE}/qgc/qgroundcontrol.pro" -spec android-clang CONFIG+=StableBuild CONFIG+=installer ANDROID_ABIS="arm64-v8a"
+          make -j2
+          test -f package/QGroundControl64.apk
+          cp package/QGroundControl64.apk "${GITHUB_WORKSPACE}/artifacts/QGC-4.4.0-Dehaze-Lab-UNSIGNED.apk"
+
+      - name: Create Dehaze Lab signing key
+        shell: bash
+        run: |
+          keytool -genkeypair -v             -keystore "${{ runner.temp }}/dehaze44.keystore"             -storepass dehazelab44             -keypass dehazelab44             -alias dehaze44             -keyalg RSA -keysize 2048 -validity 10000             -dname "CN=QGC 4.4 Dehaze Lab, OU=Lab, O=Dehaze Lab, L=Kyiv, C=UA"
+
+      - name: Align sign and verify APK
+        shell: bash
+        run: |
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/33.0.2"
+          "$BUILD_TOOLS/zipalign" -f 4             artifacts/QGC-4.4.0-Dehaze-Lab-UNSIGNED.apk             artifacts/QGC-4.4.0-Dehaze-Lab-aligned.apk
+          "$BUILD_TOOLS/apksigner" sign             --ks "${{ runner.temp }}/dehaze44.keystore"             --ks-key-alias dehaze44             --ks-pass pass:dehazelab44             --key-pass pass:dehazelab44             --out artifacts/QGC-4.4.0-Dehaze-Lab-Samsung-FE-arm64.apk             artifacts/QGC-4.4.0-Dehaze-Lab-aligned.apk
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs artifacts/QGC-4.4.0-Dehaze-Lab-Samsung-FE-arm64.apk
+          "$BUILD_TOOLS/aapt" dump badging artifacts/QGC-4.4.0-Dehaze-Lab-Samsung-FE-arm64.apk | head -n 8
+          "$BUILD_TOOLS/aapt" dump badging artifacts/QGC-4.4.0-Dehaze-Lab-Samsung-FE-arm64.apk | grep -q "package: name='org.mavlink.qgroundcontrol.dehazelab44'"
+
+      - name: Package source overlay
+        if: always()
+        shell: bash
+        run: |
+          cd lab
+          zip -qr ../artifacts/QGC-4.4.0-Dehaze-Lab-SOURCE-OVERLAY.zip qgc-dehaze/qgc4-overlay
+          cd ..
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: QGC-4.4.0-Dehaze-Lab-APK
+          path: artifacts/QGC-4.4.0-Dehaze-Lab-Samsung-FE-arm64.apk
+
+      - name: Upload source
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: QGC-4.4.0-Dehaze-Lab-Source
+          path: artifacts/QGC-4.4.0-Dehaze-Lab-SOURCE-OVERLAY.zip
