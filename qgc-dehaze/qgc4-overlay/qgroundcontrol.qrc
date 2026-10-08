@@ -206,6 +206,7 @@
         <file alias="QGroundControl/FactControls/FactValueSlider.qml">src/FactSystem/FactControls/FactValueSlider.qml</file>
         <file alias="QGroundControl/FactControls/qmldir">src/QmlControls/QGroundControl/FactControls/qmldir</file>
         <file alias="QGroundControl/FlightDisplay/DehazePanel.qml">src/FlightDisplay/DehazePanel.qml</file>
+        <file alias="QGroundControl/FlightDisplay/dehaze.frag">src/FlightDisplay/dehaze.frag</file>
         <file alias="QGroundControl/FlightDisplay/FlightDisplayViewVideo.qml">src/FlightDisplay/FlightDisplayViewVideo.qml</file>
         <file alias="QGroundControl/FlightDisplay/FlightDisplayViewWidgets.qml">src/FlightDisplay/FlightDisplayViewWidgets.qml</file>
         <file alias="QGroundControl/FlightDisplay/FlyView.qml">src/FlightDisplay/FlyView.qml</file>
