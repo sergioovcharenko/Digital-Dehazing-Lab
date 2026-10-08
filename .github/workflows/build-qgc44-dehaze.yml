@@ -54,7 +54,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "11"
+          java-version: "17"
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -85,6 +85,12 @@ jobs:
           modules: "qtcharts"
           setup-python: true
           cache: true
+
+      - name: Switch Java 11 for Qt5 build
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "11"
 
       - name: Install build dependencies
         shell: bash
