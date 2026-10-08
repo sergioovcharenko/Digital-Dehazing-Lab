@@ -28,9 +28,21 @@ jobs:
         with:
           repository: mavlink/qgroundcontrol
           ref: v4.4.0
-          submodules: recursive
+          submodules: false
           fetch-depth: 1
           path: qgc
+
+      - name: Checkout QGC submodules
+        shell: bash
+        working-directory: qgc
+        run: |
+          git config submodule.libs/eigen.url https://github.com/eigenteam/eigen-git-mirror.git
+          git submodule sync --recursive
+          for i in 1 2 3; do
+            git submodule update --init --recursive --jobs 4 && break
+            if [ "$i" = "3" ]; then exit 1; fi
+            sleep 10
+          done
 
       - name: Apply 4.4 overlay
         shell: bash
@@ -122,6 +134,7 @@ jobs:
         if: always()
         shell: bash
         run: |
+          mkdir -p artifacts
           cd lab
           zip -qr ../artifacts/QGC-4.4.0-Dehaze-Lab-SOURCE-OVERLAY.zip qgc-dehaze/qgc4-overlay
           cd ..
