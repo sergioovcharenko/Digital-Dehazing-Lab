@@ -120,6 +120,7 @@ jobs:
           mkdir -p "${{ runner.temp }}/qgc44-build"
           cd "${{ runner.temp }}/qgc44-build"
           qmake -r "${GITHUB_WORKSPACE}/qgc/qgroundcontrol.pro" -spec android-clang CONFIG+=StableBuild CONFIG+=installer ANDROID_ABIS="arm64-v8a"
+          sed -i "s/androiddeployqt --input/androiddeployqt --android-platform android-33 --input/g" Makefile
           make -j2
           test -f package/QGroundControl64.apk
           cp package/QGroundControl64.apk "${GITHUB_WORKSPACE}/artifacts/QGC-4.4.0-Dehaze-Lab-UNSIGNED.apk"
