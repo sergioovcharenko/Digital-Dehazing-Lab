@@ -56,8 +56,8 @@ public:
     Q_PROPERTY(bool             decoding                READ    decoding                                    NOTIFY decodingChanged)
     Q_PROPERTY(bool             recording               READ    recording                                   NOTIFY recordingChanged)
     Q_PROPERTY(QSize            videoSize               READ    videoSize                                   NOTIFY videoSizeChanged)
-    Q_PROPERTY(QString          dehazeRunMode           READ    dehazeRunMode       WRITE setDehazeRunMode  NOTIFY dehazeChanged)
-    Q_PROPERTY(QString          dehazeStrength          READ    dehazeStrength      WRITE setDehazeStrength NOTIFY dehazeChanged)
+    Q_PROPERTY(QString          dehazeRunMode           READ    dehazeRunMode       WRITE setDehazeRunMode   NOTIFY dehazeChanged)
+    Q_PROPERTY(QString          dehazeStrength          READ    dehazeStrength      WRITE setDehazeStrength  NOTIFY dehazeChanged)
     Q_PROPERTY(QString          dehazeAlgorithm         READ    dehazeAlgorithm     WRITE setDehazeAlgorithm NOTIFY dehazeChanged)
     Q_PROPERTY(bool             dehazePanelOpen         READ    dehazePanelOpen     WRITE setDehazePanelOpen NOTIFY dehazeChanged)
 
@@ -87,20 +87,20 @@ public:
         return _recording;
     }
 
-    QString dehazeRunMode() const { return _dehazeRunMode; }
-    QString dehazeStrength() const { return _dehazeStrength; }
-    QString dehazeAlgorithm() const { return _dehazeAlgorithm; }
-    bool dehazePanelOpen() const { return _dehazePanelOpen; }
-
-    void setDehazeRunMode(const QString& value) { if (_dehazeRunMode != value) { _dehazeRunMode = value; emit dehazeChanged(); } }
-    void setDehazeStrength(const QString& value) { if (_dehazeStrength != value) { _dehazeStrength = value; emit dehazeChanged(); } }
-    void setDehazeAlgorithm(const QString& value) { if (_dehazeAlgorithm != value) { _dehazeAlgorithm = value; emit dehazeChanged(); } }
-    void setDehazePanelOpen(bool value) { if (_dehazePanelOpen != value) { _dehazePanelOpen = value; emit dehazeChanged(); } }
-
     QSize videoSize(void) {
         const quint32 size = _videoSize;
         return QSize((size >> 16) & 0xFFFF, size & 0xFFFF);
     }
+
+    QString dehazeRunMode(void) const { return _dehazeRunMode; }
+    QString dehazeStrength(void) const { return _dehazeStrength; }
+    QString dehazeAlgorithm(void) const { return _dehazeAlgorithm; }
+    bool dehazePanelOpen(void) const { return _dehazePanelOpen; }
+
+    void setDehazeRunMode(const QString& v) { if (_dehazeRunMode != v) { _dehazeRunMode = v; emit dehazeChanged(); } }
+    void setDehazeStrength(const QString& v) { if (_dehazeStrength != v) { _dehazeStrength = v; emit dehazeChanged(); } }
+    void setDehazeAlgorithm(const QString& v) { if (_dehazeAlgorithm != v) { _dehazeAlgorithm = v; emit dehazeChanged(); } }
+    void setDehazePanelOpen(bool v) { if (_dehazePanelOpen != v) { _dehazePanelOpen = v; emit dehazeChanged(); } }
 
 // FIXME: AV: they should be removed after finishing multiple video stream support
 // new arcitecture does not assume direct access to video receiver from QML side, even if it works for now
@@ -143,7 +143,7 @@ signals:
     void recordingChanged           ();
     void recordingStarted           ();
     void videoSizeChanged           ();
-    void dehazeChanged              ();
+    void dehazeChanged               ();
 
 protected slots:
     void _videoSourceChanged        ();
@@ -191,6 +191,7 @@ protected:
     QString                 _uvcVideoSourceID;
     bool                    _fullScreen             = false;
     Vehicle*                _activeVehicle          = nullptr;
+
     QString                 _dehazeRunMode          = QStringLiteral("OFF");
     QString                 _dehazeStrength         = QStringLiteral("MEDIUM");
     QString                 _dehazeAlgorithm        = QStringLiteral("ADAPTIVE");
