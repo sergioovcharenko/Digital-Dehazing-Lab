@@ -153,7 +153,7 @@ Item {
                         return 1.0
                     }
 
-                    fragmentShader: "qrc:/qml/QGroundControl/FlightDisplay/dehaze.frag"                    "
+                    fragmentShader: "qrc:/qml/QGroundControl/FlightDisplay/dehaze.frag"
                 }
 
                 Rectangle { color: Qt.rgba(1,1,1,0.5); height: parent.height; width: 1; x: parent.width * 0.33; visible: _showGrid && !QGroundControl.videoManager.fullScreen }
