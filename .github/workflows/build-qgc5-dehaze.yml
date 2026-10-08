@@ -2,6 +2,11 @@ name: QGC5 Dehaze Android
 
 on:
   push:
+    branches:
+      - qgc-dehaze-lab
+    paths:
+      - 'qgc-dehaze/qgc5-overlay/**'
+      - '.github/workflows/build-qgc5-dehaze.yml'
   workflow_dispatch:
 
 jobs:
