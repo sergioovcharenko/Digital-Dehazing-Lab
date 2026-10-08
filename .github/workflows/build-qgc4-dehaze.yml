@@ -39,16 +39,22 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Setup Java
+      - name: Setup Java for SDK tools
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "11"
+          java-version: "17"
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
           packages: "platform-tools platforms;android-33 build-tools;33.0.2"
+
+      - name: Setup Java for Qt5 build
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "11"
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
