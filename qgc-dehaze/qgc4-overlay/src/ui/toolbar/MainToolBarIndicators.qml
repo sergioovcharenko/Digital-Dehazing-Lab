@@ -29,6 +29,15 @@ Row {
         toolIndicatorsRepeater.dropMessageIndicatorTool();
     }
 
+    function hasRcRssiIndicator() {
+        if (!_activeVehicle) return false;
+        var indicators = _activeVehicle.toolIndicators;
+        for (var i = 0; i < indicators.length; i++) {
+            if (String(indicators[i]).indexOf("RCRSSIIndicator.qml") >= 0) return true;
+        }
+        return false;
+    }
+
     Repeater {
         id:     appRepeater
         model:  QGroundControl.corePlugin.toolBarIndicators
@@ -53,15 +62,33 @@ Row {
             }
         }
 
-        Loader {
-            anchors.top:        parent.top
-            anchors.bottom:     parent.bottom
-            source:             modelData
-            visible:            item.showIndicator
+        Row {
+            id: indicatorSlot
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            spacing: 4
+            property var item: indicatorLoader.item
+
+            Loader {
+                id: indicatorLoader
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                source: modelData
+                visible: item && item.showIndicator
+            }
+
+            // Immediately right of the existing RC RSSI indicator.
+            DehazeToolbarControl {
+                visible: String(modelData).indexOf("RCRSSIIndicator.qml") >= 0
+            }
         }
     }
 
-    DehazeToolbarControl { }
+    // Before vehicle connection, or for firmware without an RC RSSI indicator,
+    // the DEHAZING button is still always visible.
+    DehazeToolbarControl {
+        visible: !indicatorRow.hasRcRssiIndicator()
+    }
 
     Repeater {
         model: _activeVehicle ? _activeVehicle.modeIndicators : []
