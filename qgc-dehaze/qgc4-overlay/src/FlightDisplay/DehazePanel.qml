@@ -11,36 +11,6 @@ Item {
     property bool active: vm.dehazeRunMode !== "OFF"
 
     Rectangle {
-        visible: QGroundControl.multiVehicleManager.activeVehicle !== null
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.margins: 14
-        width: 220
-        height: 58
-        radius: 8
-        color: "#B0181B1F"
-        border.width: 1
-        border.color: root.active ? "#35D06F" : "#AAAAAA"
-        Column {
-            anchors.centerIn: parent
-            spacing: 2
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: root.active ? (vm.dehazeAlgorithm + " · " + vm.dehazeStrength) : "DEHAZING · OFF"
-                color: root.active ? "#35D06F" : "white"
-                font.bold: true
-                font.pixelSize: 14
-            }
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: root.active ? "GPU · OFFLINE · QGC 4.4" : "VIDEO BYPASS"
-                color: "#DDDDDD"
-                font.pixelSize: 12
-            }
-        }
-    }
-
-    Rectangle {
         visible: vm.dehazePanelOpen && QGroundControl.multiVehicleManager.activeVehicle !== null
         anchors.top: parent.top
         anchors.right: parent.right
