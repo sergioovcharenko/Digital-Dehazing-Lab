@@ -11,7 +11,7 @@ Item {
     property bool active: vm.dehazeRunMode !== "OFF"
 
     Rectangle {
-        visible: vm.dehazePanelOpen && QGroundControl.multiVehicleManager.activeVehicle !== null
+        visible: vm.dehazePanelOpen && vm.dehazeRunMode !== "OFF"
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.topMargin: 12
