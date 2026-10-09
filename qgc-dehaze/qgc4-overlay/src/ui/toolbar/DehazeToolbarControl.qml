@@ -6,8 +6,8 @@ Row {
     id: root
     spacing: 4
     height: parent ? parent.height : ScreenTools.defaultFontPixelHeight * 2
-    visible: QGroundControl.multiVehicleManager.activeVehicle !== null &&
-             !QGroundControl.multiVehicleManager.activeVehicle.communicationLost
+    // Keep the DEHAZING button visible regardless of vehicle connection or OFF state.
+    visible: true
 
     property var vm: QGroundControl.videoManager
     property bool active: vm.dehazeRunMode !== "OFF"
@@ -32,7 +32,7 @@ Row {
             onClicked: {
                 if (vm.dehazeRunMode === "OFF") {
                     vm.dehazeRunMode = "AUTO"
-                    vm.dehazePanelOpen = true
+                    vm.dehazePanelOpen = false
                 } else {
                     vm.dehazeRunMode = "OFF"
                     vm.dehazePanelOpen = false
