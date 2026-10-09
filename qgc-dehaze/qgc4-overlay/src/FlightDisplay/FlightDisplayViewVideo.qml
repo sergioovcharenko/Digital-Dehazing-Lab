@@ -237,6 +237,7 @@ Item {
             property int zoom: 0
         }
     }
-    DehazePanel { anchors.fill: parent; visible: _connected }
+    // Keep DEHAZING settings accessible even when there is no vehicle connection.
+    DehazePanel { anchors.fill: parent }
 
 }
