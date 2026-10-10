@@ -2,16 +2,41 @@ import QtQuick 2.12
 import QtQuick.Layouts 1.12
 import QGroundControl 1.0
 import QGroundControl.Controls 1.0
+import QGroundControl.ScreenTools 1.0
+import QGroundControl.Palette 1.0
 
 Rectangle {
     id: tele
     property bool bottomMode: true
     property var v: QGroundControl.multiVehicleManager.activeVehicle
     property var bat: v && v.batteries && v.batteries.count ? v.batteries.get(0) : null
+    QGCPalette { id: qgcPal; colorGroupEnabled: enabled }
+    function fact(i) {
+        if (!v) return null;
+        switch (i) {
+        case 0: return v.altitudeRelative;
+        case 1: return v.distanceToHome;
+        case 2: return v.groundSpeed;
+        case 3: return v.getFact("flightTime");
+        case 4: return v.temperature ? v.temperature.temperature1 : null;
+        case 5: return v.flightDistance;
+        case 6: return bat ? bat.voltage : null;
+        case 7: return bat ? bat.current : null;
+        case 8: return v.efi ? v.efi.engineLoad : null;
+        }
+        return null;
+    }
+    function label(i) {
+        var f = fact(i);
+        if (f && f.shortDescription) return f.shortDescription;
+        return [qsTr("Alt (Rel)"), qsTr("Distance to Home"), qsTr("Ground Speed"),
+                qsTr("Flight Time"), qsTr("Temperature (1)"), qsTr("Flight Distance"),
+                qsTr("Voltage"), qsTr("Current"), qsTr("Engine Load")][i];
+    }
     function format(f) {
         if (!f || f.valueString === undefined) return "—";
-        var val = String(f.valueString);
-        if (!val || val === "--" || val === "nan") return "—";
+        var val = String(f.enumOrValueString === undefined ? f.valueString : f.enumOrValueString);
+        if (!val || val === "--" || val.toLowerCase() === "nan") return "—";
         return val + (f.units ? " " + f.units : "");
     }
     function reading(i) {
@@ -29,40 +54,33 @@ Rectangle {
         }
         return "—";
     }
-    color: "#C0191D22"
-    border.color: "#557F8790"
-    border.width: 1
-    radius: 6
-    width: columns.implicitWidth + 24
-    height: columns.implicitHeight + 16
+    color: qgcPal.window
+    radius: ScreenTools.defaultFontPixelWidth / 2
+    width: columns.implicitWidth + ScreenTools.defaultFontPixelWidth * 1.5
+    height: columns.implicitHeight + ScreenTools.defaultFontPixelWidth * 1.5
     DeadMouseArea { anchors.fill: parent }
     RowLayout {
         id: columns
         anchors.centerIn: parent
-        spacing: 18
+        spacing: ScreenTools.defaultFontPixelWidth * 1.25
         Repeater {
             model: 3
             ColumnLayout {
                 property int col: index
-                spacing: 7
+                spacing: ScreenTools.defaultFontPixelHeight / 4
                 Repeater {
                     model: 3
                     RowLayout {
                         property int fi: parent.col * 3 + index
-                        spacing: 6
-                        Text {
-                            color: "#DDDDDD"
-                            font.pixelSize: 13
-                            text: ["Alt Rel", "Home Dist", "Ground Speed",
-                                   "Flight Time", "Temperature (1)", "Flight Distance",
-                                   "Voltage", "Current", "EngineLoad"][fi]
+                        spacing: ScreenTools.defaultFontPixelWidth / 4
+                        QGCLabel {
+                            font.pointSize: ScreenTools.smallFontPointSize
+                            text: tele.label(fi)
                         }
-                        Text {
-                            Layout.minimumWidth: 55
+                        QGCLabel {
+                            Layout.minimumWidth: ScreenTools.defaultFontPixelWidth * 7
                             horizontalAlignment: Text.AlignRight
-                            color: "white"
-                            font.pixelSize: 13
-                            font.bold: true
+                            font.pointSize: ScreenTools.defaultFontPointSize
                             text: tele.reading(fi)
                         }
                     }
@@ -71,3 +89,4 @@ Rectangle {
         }
     }
 }
+

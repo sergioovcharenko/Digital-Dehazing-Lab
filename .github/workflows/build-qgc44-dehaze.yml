@@ -29,6 +29,10 @@ jobs:
           ref: qgc-dehaze-lab
           path: lab
 
+      - name: Check agreed UI contracts
+        working-directory: lab
+        run: node --test tests/ui-contract.test.cjs
+
       - name: Checkout QGC 4.4.0
         uses: actions/checkout@v4
         with:
@@ -64,7 +68,7 @@ jobs:
           fi
           sed -i "s/org.mavlink.qgroundcontrol.dehazelab44/${PACKAGE}/g" qgc/android/AndroidManifest.xml qgc/QGCCommon.pri
           sed -i "s/-- %%INSERT_APP_NAME%% --/${APP_LABEL}/g" qgc/android/AndroidManifest.xml
-          sed -i "s/DEHAZE_BUILD_VARIANT/${VARIANT}/g" qgc/src/FlightDisplay/DehazePanel.qml qgc/src/FlightDisplay/FlightDisplayViewVideo.qml
+          sed -i "s/DEHAZE_BUILD_VARIANT/${VARIANT}/g" qgc/src/FlightDisplay/DehazePanel.qml qgc/src/FlightDisplay/FlightDisplayViewVideo.qml qgc/src/ui/toolbar/MainToolBar.qml
           mkdir -p artifacts
 
       - name: Setup Java
@@ -179,3 +183,4 @@ jobs:
         with:
           name: QGC-4.4-Dehaze-${{ matrix.variant }}-Source
           path: artifacts/QGC-4.4-Dehaze-${{ matrix.variant }}-SOURCE.zip
+

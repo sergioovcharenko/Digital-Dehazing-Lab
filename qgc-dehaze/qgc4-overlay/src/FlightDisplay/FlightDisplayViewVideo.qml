@@ -242,45 +242,6 @@ Item {
     property var dg: dv && dv.gimbalController ? dv.gimbalController.activeGimbal : null
     property var pitchFact: dg && dg.absolutePitch ? dg.absolutePitch : null
 
-    Rectangle {
-        anchors.left: parent.left
-        anchors.leftMargin: 14
-        anchors.top: parent.top
-        anchors.topMargin: 86
-        z: 100
-        width: dbm.implicitWidth + 20
-        height: 34
-        color: "#C0191D22"
-        radius: 5
-        Text {
-            id: dbm
-            anchors.centerIn: parent
-            color: "white"
-            font.bold: true
-            font.pixelSize: 16
-            text: root.dv && root.dv.telemetryLRSSI < 0 && root.dv.telemetryLRSSI >= -120 ?
-                  Math.round(root.dv.telemetryLRSSI) + " dBm" : "— dBm"
-        }
-    }
-    Rectangle {
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: parent.top
-        anchors.topMargin: 86
-        z: 100
-        width: dehazeStatus.implicitWidth + 20
-        height: 34
-        color: "#C0191D22"
-        radius: 5
-        Text {
-            id: dehazeStatus
-            anchors.centerIn: parent
-            color: "white"
-            font.pixelSize: 14
-            text: "DEHAZING · DEHAZE_BUILD_VARIANT · " +
-                  QGroundControl.videoManager.dehazeRunMode +
-                  " · затримка — ms"
-        }
-    }
     Text {
         anchors.left: parent.left
         anchors.leftMargin: 14
@@ -291,7 +252,7 @@ Item {
         style: Text.Outline
         styleColor: "black"
         font.bold: true
-        font.pixelSize: 19
+        font.pixelSize: 19 * 2.5 // 2.5x the previous CAM label, independently of device font settings.
         text: root.pitchFact && isFinite(Number(root.pitchFact.rawValue)) ?
               "CAM " + Math.round(Number(root.pitchFact.rawValue)) + "°" : "CAM —°"
     }
@@ -299,3 +260,4 @@ Item {
     // Keep DEHAZING settings accessible even when there is no vehicle connection.
     DehazePanel { anchors.fill: parent }
 }
+

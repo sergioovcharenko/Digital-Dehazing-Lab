@@ -93,8 +93,13 @@ Row {
 
     // Before vehicle connection, or for firmware without an RC RSSI indicator,
     // the DEHAZING button is still always visible.
-    DehazeToolbarControl {
+    Row {
         visible: !indicatorRow.hasRcRssiIndicator()
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        spacing: 4
+        RCRSSIIndicator { }
+        DehazeToolbarControl { }
     }
 
     Repeater {
@@ -107,3 +112,4 @@ Row {
         }
     }
 }
+
