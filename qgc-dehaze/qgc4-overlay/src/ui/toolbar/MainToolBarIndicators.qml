@@ -45,7 +45,8 @@ Row {
             anchors.top:        parent.top
             anchors.bottom:     parent.bottom
             source:             modelData
-            visible:            item.showIndicator
+            visible:            item && item.showIndicator &&
+                                String(modelData).indexOf("GPSRTKIndicator.qml") < 0
         }
     }
 
@@ -74,7 +75,13 @@ Row {
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 source: modelData
-                visible: item && item.showIndicator
+                // Hide only the crossed-out icons; preserve their internal services.
+                visible: item && item.showIndicator &&
+                    ["GPSIndicator.qml", "TelemetryRSSIIndicator.qml",
+                     "BatteryIndicator.qml", "RemoteIDIndicator.qml",
+                     "GimbalIndicator.qml"].every(function(n) {
+                        return String(modelData).indexOf(n) < 0;
+                    })
             }
 
             // Immediately right of the existing RC RSSI indicator.
