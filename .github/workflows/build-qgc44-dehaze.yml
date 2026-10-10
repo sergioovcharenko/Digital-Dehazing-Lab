@@ -6,6 +6,7 @@ on:
       - qgc-dehaze-lab
     paths:
       - 'qgc-dehaze/qgc4-overlay/**'
+      - 'qgc-dehaze/qgc4-adaptive/**'
       - '.github/workflows/build-qgc44-dehaze.yml'
   workflow_dispatch:
 
@@ -170,11 +171,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: QGC-4.4-Dehaze-${{ matrix.variant }}-APK
-          path: artifacts/QGC-4.4-Dehaze-${VARIANT}.apk
+          path: artifacts/QGC-4.4-Dehaze-${{ matrix.variant }}.apk
 
       - name: Upload source
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: QGC-4.4-Dehaze-${{ matrix.variant }}-Source
-          path: artifacts/QGC-4.4-Dehaze-${VARIANT}-SOURCE.zip
+          path: artifacts/QGC-4.4-Dehaze-${{ matrix.variant }}-SOURCE.zip

@@ -40,10 +40,10 @@ void main() {
     if (autoBlend > 0.5) {
         highp vec2 d = vec2(0.005, 0.005);
         highp float l0 = lum(c);
-        highp float l1 = lum(texture2D(source, clamp(uv+vec2(d.x,0.0), 0.0, 1.0)).rgb);
-        highp float l2 = lum(texture2D(source, clamp(uv-vec2(d.x,0.0), 0.0, 1.0)).rgb);
-        highp float l3 = lum(texture2D(source, clamp(uv+vec2(0.0,d.y), 0.0, 1.0)).rgb);
-        highp float l4 = lum(texture2D(source, clamp(uv-vec2(0.0,d.y), 0.0, 1.0)).rgb);
+        highp float l1 = lum(texture2D(source, clamp(uv+vec2(d.x,0.0), vec2(0.0), vec2(1.0))).rgb);
+        highp float l2 = lum(texture2D(source, clamp(uv-vec2(d.x,0.0), vec2(0.0), vec2(1.0))).rgb);
+        highp float l3 = lum(texture2D(source, clamp(uv+vec2(0.0,d.y), vec2(0.0), vec2(1.0))).rgb);
+        highp float l4 = lum(texture2D(source, clamp(uv-vec2(0.0,d.y), vec2(0.0), vec2(1.0))).rgb);
         highp float contrast = max(max(abs(l1-l0),abs(l2-l0)),max(abs(l3-l0),abs(l4-l0)));
         highp float fog = clamp((darkAt(uv)-0.12)*2.2 - contrast*2.0, 0.0, 1.0);
         s = mix(0.20, 0.92, smoothstep(0.08, 0.72, fog));
