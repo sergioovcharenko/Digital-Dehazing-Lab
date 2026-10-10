@@ -10,7 +10,8 @@ Item {
     property var vm: QGroundControl.videoManager
     property bool active: vm.dehazeRunMode !== "OFF"
 
-    // Dropdown below the upper DEHAZING button, around the screen center.\n    // Keep it in the Qt window overlay so it is not hidden by the compass/HUD.
+    // Dropdown below the upper DEHAZING button, around the screen center.
+    // Keep it in the Qt window overlay so it is not hidden by the compass/HUD.
     Popup {
         id: settingsPopup
         parent: Overlay.overlay
