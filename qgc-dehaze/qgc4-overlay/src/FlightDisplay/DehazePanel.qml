@@ -10,8 +10,8 @@ Item {
     property var vm: QGroundControl.videoManager
     property bool active: vm.dehazeRunMode !== "OFF"
 
-    // Popup is attached to the window overlay, rather than the video Item.
-    // It stays above QGC instruments and remains usable on smaller tablets.
+    // Preserve the original upper-right menu placement, but render it above
+    // the QGC HUD and compass using the window overlay.
     Popup {
         id: settingsPopup
         parent: Overlay.overlay
@@ -26,8 +26,8 @@ Item {
         width: Math.min(450, Math.max(260, parent ? parent.width - 24 : 450))
         height: Math.min(menuBody.implicitHeight + topHeading.height + 38,
                          Math.max(180, parent ? parent.height - 36 : 500))
-        x: parent ? Math.max(12, (parent.width - width) / 2) : 12
-        y: parent ? Math.max(12, (parent.height - height) / 2) : 12
+        x: parent ? Math.max(12, parent.width - width - 12) : 12
+        y: 12
 
         background: Rectangle {
             color: "#F0191D22"
