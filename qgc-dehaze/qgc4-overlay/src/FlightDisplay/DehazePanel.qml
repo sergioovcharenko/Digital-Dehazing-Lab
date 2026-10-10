@@ -10,8 +10,7 @@ Item {
     property var vm: QGroundControl.videoManager
     property bool active: vm.dehazeRunMode !== "OFF"
 
-    // Preserve the original upper-right menu placement, but render it above
-    // the QGC HUD and compass using the window overlay.
+    // Dropdown below the upper DEHAZING button, around the screen center.\n    // Keep it in the Qt window overlay so it is not hidden by the compass/HUD.
     Popup {
         id: settingsPopup
         parent: Overlay.overlay
@@ -24,10 +23,12 @@ Item {
         padding: 12
 
         width: Math.min(450, Math.max(260, parent ? parent.width - 24 : 450))
+        // Leave room for the QGC toolbar; avoid clipping the lower algorithm rows.
+        property real topOffset: parent ? Math.max(58, Math.min(84, parent.height * 0.11)) : 68
         height: Math.min(menuBody.implicitHeight + topHeading.height + 38,
-                         Math.max(180, parent ? parent.height - 36 : 500))
-        x: parent ? Math.max(12, parent.width - width - 12) : 12
-        y: 12
+                         Math.max(150, parent ? parent.height - topOffset - 12 : 500))
+        x: parent ? Math.max(12, (parent.width - width) / 2) : 12
+        y: topOffset
 
         background: Rectangle {
             color: "#F0191D22"
