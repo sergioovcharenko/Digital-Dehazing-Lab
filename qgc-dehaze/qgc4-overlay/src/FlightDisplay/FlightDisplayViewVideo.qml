@@ -133,6 +133,7 @@ Item {
                     visible: processedVideoLayer.dehazeActive
 
                     property variant source: videoTexture
+                    property real autoBlend: vm.dehazeRunMode === "AUTO" ? 1.0 : 0.0
                     property real strength: {
                         if (vm.dehazeRunMode === "AUTO") return 0.72
                         if (vm.dehazeStrength === "LOW") return 0.35
@@ -237,7 +238,64 @@ Item {
             property int zoom: 0
         }
     }
+    property var dv: QGroundControl.multiVehicleManager.activeVehicle
+    property var dg: dv && dv.gimbalController ? dv.gimbalController.activeGimbal : null
+    property var pitchFact: dg && dg.absolutePitch ? dg.absolutePitch : null
+
+    Rectangle {
+        anchors.left: parent.left
+        anchors.leftMargin: 14
+        anchors.top: parent.top
+        anchors.topMargin: 86
+        z: 100
+        width: dbm.implicitWidth + 20
+        height: 34
+        color: "#C0191D22"
+        radius: 5
+        Text {
+            id: dbm
+            anchors.centerIn: parent
+            color: "white"
+            font.bold: true
+            font.pixelSize: 16
+            text: root.dv && root.dv.telemetryLRSSI < 0 && root.dv.telemetryLRSSI >= -120 ?
+                  Math.round(root.dv.telemetryLRSSI) + " dBm" : "— dBm"
+        }
+    }
+    Rectangle {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: 86
+        z: 100
+        width: dehazeStatus.implicitWidth + 20
+        height: 34
+        color: "#C0191D22"
+        radius: 5
+        Text {
+            id: dehazeStatus
+            anchors.centerIn: parent
+            color: "white"
+            font.pixelSize: 14
+            text: "DEHAZING · DEHAZE_BUILD_VARIANT · " +
+                  QGroundControl.videoManager.dehazeRunMode +
+                  " · затримка — ms"
+        }
+    }
+    Text {
+        anchors.left: parent.left
+        anchors.leftMargin: 14
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 108
+        z: 100
+        color: "white"
+        style: Text.Outline
+        styleColor: "black"
+        font.bold: true
+        font.pixelSize: 19
+        text: root.pitchFact && isFinite(Number(root.pitchFact.rawValue)) ?
+              "CAM " + Math.round(Number(root.pitchFact.rawValue)) + "°" : "CAM —°"
+    }
+
     // Keep DEHAZING settings accessible even when there is no vehicle connection.
     DehazePanel { anchors.fill: parent }
-
 }

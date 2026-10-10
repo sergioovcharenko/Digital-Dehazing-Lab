@@ -11,10 +11,15 @@ on:
 
 jobs:
   build:
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [Classic, Adaptive]
     runs-on: ubuntu-22.04
     timeout-minutes: 120
     env:
       QT_VERSION: "5.15.2"
+      VARIANT: ${{ matrix.variant }}
 
     steps:
       - name: Checkout lab
@@ -48,6 +53,17 @@ jobs:
         shell: bash
         run: |
           cp -a lab/qgc-dehaze/qgc4-overlay/. qgc/
+          if [ "$VARIANT" = "Classic" ]; then
+            PACKAGE="org.mavlink.qgroundcontrol.dehazeclassic"
+            APP_LABEL="QGC Dehaze Classic"
+          else
+            PACKAGE="org.mavlink.qgroundcontrol.dehazeadaptive"
+            APP_LABEL="QGC Dehaze Adaptive"
+            cp lab/qgc-dehaze/qgc4-adaptive/dehaze.frag qgc/src/FlightDisplay/dehaze.frag
+          fi
+          sed -i "s/org.mavlink.qgroundcontrol.dehazelab44/${PACKAGE}/g" qgc/android/AndroidManifest.xml qgc/QGCCommon.pri
+          sed -i "s/-- %%INSERT_APP_NAME%% --/${APP_LABEL}/g" qgc/android/AndroidManifest.xml
+          sed -i "s/DEHAZE_BUILD_VARIANT/${VARIANT}/g" qgc/src/FlightDisplay/DehazePanel.qml qgc/src/FlightDisplay/FlightDisplayViewVideo.qml
           mkdir -p artifacts
 
       - name: Setup Java
@@ -123,7 +139,7 @@ jobs:
           sed -i "s/androiddeployqt --input/androiddeployqt --android-platform android-33 --input/g" Makefile
           make -j2
           test -f package/QGroundControl64.apk
-          cp package/QGroundControl64.apk "${GITHUB_WORKSPACE}/artifacts/QGC-4.4.0-Dehaze-Lab-UNSIGNED.apk"
+          cp package/QGroundControl64.apk "${GITHUB_WORKSPACE}/artifacts/QGC-4.4-Dehaze-${VARIANT}-UNSIGNED.apk"
 
       - name: Create Dehaze Lab signing key
         shell: bash
@@ -134,11 +150,11 @@ jobs:
         shell: bash
         run: |
           BUILD_TOOLS="$ANDROID_HOME/build-tools/33.0.2"
-          "$BUILD_TOOLS/zipalign" -f 4             artifacts/QGC-4.4.0-Dehaze-Lab-UNSIGNED.apk             artifacts/QGC-4.4.0-Dehaze-Lab-aligned.apk
-          "$BUILD_TOOLS/apksigner" sign             --ks "${{ runner.temp }}/dehaze44.keystore"             --ks-key-alias dehaze44             --ks-pass pass:dehazelab44             --key-pass pass:dehazelab44             --out artifacts/QGC-4.4.0-Dehaze-Lab-Samsung-FE-arm64.apk             artifacts/QGC-4.4.0-Dehaze-Lab-aligned.apk
-          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs artifacts/QGC-4.4.0-Dehaze-Lab-Samsung-FE-arm64.apk
-          "$BUILD_TOOLS/aapt" dump badging artifacts/QGC-4.4.0-Dehaze-Lab-Samsung-FE-arm64.apk | head -n 8
-          "$BUILD_TOOLS/aapt" dump badging artifacts/QGC-4.4.0-Dehaze-Lab-Samsung-FE-arm64.apk | grep -q "package: name='org.mavlink.qgroundcontrol.dehazelab44'"
+          "$BUILD_TOOLS/zipalign" -f 4             artifacts/QGC-4.4-Dehaze-${VARIANT}-UNSIGNED.apk             artifacts/QGC-4.4-Dehaze-${VARIANT}-aligned.apk
+          "$BUILD_TOOLS/apksigner" sign             --ks "${{ runner.temp }}/dehaze44.keystore"             --ks-key-alias dehaze44             --ks-pass pass:dehazelab44             --key-pass pass:dehazelab44             --out artifacts/QGC-4.4-Dehaze-${VARIANT}.apk             artifacts/QGC-4.4-Dehaze-${VARIANT}-aligned.apk
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs artifacts/QGC-4.4-Dehaze-${VARIANT}.apk
+          "$BUILD_TOOLS/aapt" dump badging artifacts/QGC-4.4-Dehaze-${VARIANT}.apk | head -n 8
+          "$BUILD_TOOLS/aapt" dump badging artifacts/QGC-4.4-Dehaze-${VARIANT}.apk | grep -q "package: name='org.mavlink.qgroundcontrol.dehaze${VARIANT,,}'"
 
       - name: Package source overlay
         if: always()
@@ -146,19 +162,19 @@ jobs:
         run: |
           mkdir -p artifacts
           cd lab
-          zip -qr ../artifacts/QGC-4.4.0-Dehaze-Lab-SOURCE-OVERLAY.zip qgc-dehaze/qgc4-overlay
+          zip -qr ../artifacts/QGC-4.4-Dehaze-${VARIANT}-SOURCE.zip qgc-dehaze/qgc4-overlay qgc-dehaze/qgc4-adaptive
           cd ..
 
       - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: QGC-4.4.0-Dehaze-Lab-APK
-          path: artifacts/QGC-4.4.0-Dehaze-Lab-Samsung-FE-arm64.apk
+          name: QGC-4.4-Dehaze-${{ matrix.variant }}-APK
+          path: artifacts/QGC-4.4-Dehaze-${VARIANT}.apk
 
       - name: Upload source
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: QGC-4.4.0-Dehaze-Lab-Source
-          path: artifacts/QGC-4.4.0-Dehaze-Lab-SOURCE-OVERLAY.zip
+          name: QGC-4.4-Dehaze-${{ matrix.variant }}-Source
+          path: artifacts/QGC-4.4-Dehaze-${VARIANT}-SOURCE.zip

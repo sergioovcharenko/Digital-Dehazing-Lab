@@ -23,7 +23,7 @@ Item {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         padding: 12
 
-        width: Math.min(450, Math.max(260, parent ? parent.width - 24 : 450))
+        width: Math.min(760, Math.max(320, parent ? parent.width - 24 : 760))
         // Leave room for the QGC toolbar; avoid clipping the lower algorithm rows.
         property real topOffset: parent ? Math.max(58, Math.min(84, parent.height * 0.11)) : 68
         height: Math.min(menuBody.implicitHeight + topHeading.height + 38,
@@ -48,11 +48,11 @@ Item {
             Row {
                 id: topHeading
                 width: parent.width
-                height: 38
+                height: 52
                 Text {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "DEHAZING"
+                    text: "DEHAZING · DEHAZE_BUILD_VARIANT"
                     color: "white"
                     font.bold: true
                     font.pixelSize: 16
@@ -86,9 +86,9 @@ Item {
                             model: ["AUTO", "MANUAL", "OFF"]
                             Button {
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 42
+                                Layout.preferredHeight: 60
                                 text: modelData
-                                font.pixelSize: 13
+                                font.pixelSize: 17
                                 highlighted: vm.dehazeRunMode === modelData
                                 onClicked: {
                                     vm.dehazeRunMode = modelData
@@ -104,9 +104,9 @@ Item {
                             model: ["LOW", "MEDIUM", "HIGH"]
                             Button {
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 42
+                                Layout.preferredHeight: 60
                                 text: modelData
-                                font.pixelSize: 13
+                                font.pixelSize: 17
                                 highlighted: vm.dehazeStrength === modelData
                                 enabled: root.active
                                 onClicked: vm.dehazeStrength = modelData
@@ -115,7 +115,7 @@ Item {
                     }
                     GridLayout {
                         Layout.fillWidth: true
-                        columns: scrollingMenu.width >= 360 ? 3 : 2
+                        columns: scrollingMenu.width >= 520 ? 3 : 2
                         rowSpacing: 4
                         columnSpacing: 4
                         Repeater {
@@ -124,8 +124,8 @@ Item {
                                     "CAP", "CLAHE", "RETINEX"]
                             Button {
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 42
-                                font.pixelSize: 12
+                                Layout.preferredHeight: 60
+                                font.pixelSize: 16
                                 text: modelData
                                 highlighted: vm.dehazeAlgorithm === modelData
                                 enabled: vm.dehazeRunMode === "MANUAL"
